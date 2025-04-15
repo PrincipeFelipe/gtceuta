@@ -1,0 +1,180 @@
+/* Contenedor principal para el editor */
+.tiptap-editor {
+  border: 1px solid #374151;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+/* Barra de herramientas */
+.tiptap-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  background-color: #1f2937;
+  border-bottom: 1px solid #374151;
+  padding: 0.5rem;
+  gap: 0.5rem;
+}
+
+.tiptap-button-group {
+  display: flex;
+  gap: 0.25rem;
+  border-right: 1px solid #374151;
+  padding-right: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+.tiptap-button-group:last-child {
+  border-right: none;
+  padding-right: 0;
+  margin-right: 0;
+}
+
+/* Botones de la barra de herramientas */
+.tiptap-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #374151;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.tiptap-toolbar button:hover {
+  background-color: #4B5563;
+}
+
+.tiptap-toolbar button.is-active {
+  background-color: #EF4444;
+}
+
+/* Área de contenido */
+.tiptap-content {
+  background-color: white;
+}
+
+.ProseMirror {
+  padding: 1rem;
+  min-height: 200px;
+  background-color: white;
+  color: #111827;
+}
+
+.ProseMirror:focus {
+  outline: none;
+}
+
+/* Estilos del contenido */
+.ProseMirror p {
+  margin: 0.5em 0;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror h3 {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+}
+
+.ProseMirror a {
+  color: #3B82F6;
+  text-decoration: underline;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid #EF4444;
+  padding-left: 1rem;
+  margin-left: 1rem;
+  margin-right: 0;
+  font-style: italic;
+}
+
+/* Añadir o modificar los estilos para las imágenes */
+
+/* Mejorar el soporte para imágenes */
+.ProseMirror img,
+.tiptap-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+  display: block;
+  margin: 1rem 0;
+}
+
+/* Indicador visual cuando una imagen está seleccionada */
+.ProseMirror img.ProseMirror-selectednode {
+  outline: 3px solid #ef4444;
+  outline-offset: 2px;
+}
+
+/* Comportamiento de hover para imágenes */
+.ProseMirror img:hover {
+  cursor: pointer;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+/* Modo oscuro para la vista previa */
+.blog-content-preview .ProseMirror,
+.blog-content-preview {
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+}
+
+.blog-content-preview .ProseMirror h1, 
+.blog-content-preview .ProseMirror h2, 
+.blog-content-preview .ProseMirror h3 {
+  color: white !important;
+}
+
+.blog-content-preview .ProseMirror a {
+  color: #ef4444 !important;
+}
+
+.blog-content-preview .ProseMirror blockquote {
+  color: #d1d5db;
+}
+
+/* Texto alineado */
+.ProseMirror .text-left {
+  text-align: left;
+}
+
+.ProseMirror .text-center {
+  text-align: center;
+}
+
+.ProseMirror .text-right {
+  text-align: right;
+}
+
+.ProseMirror .text-justify {
+  text-align: justify;
+}

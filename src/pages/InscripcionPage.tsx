@@ -154,7 +154,7 @@ const InscripcionPage = () => {
                   </p>
                   <ul className="list-disc pl-6 mt-2 text-gray-300">
                     <li>Cancelación hasta 30 días antes: reembolso del 100%</li>
-                    <li>Cancelación entre 30 y 15 días antes: reembolso del 50%</li>
+                   
                     <li>Cancelación con menos de 15 días: no hay reembolso</li>
                   </ul>
                 </div>
@@ -175,13 +175,7 @@ const InscripcionPage = () => {
                   </p>
                 </div>
                 
-                <div className="bg-gray-800 p-6 rounded-lg">
-                  <h3 className="text-xl font-bold mb-3">¿Hay descuentos disponibles?</h3>
-                  <p className="text-gray-300">
-                    Ofrecemos un descuento del 10% para grupos de 5 o más jugadores que se inscriban juntos. 
-                    También hay un descuento del 15% para jugadores menores de 18 años (se requerirá documento acreditativo).
-                  </p>
-                </div>
+                
                 
                 <div className="mt-6 text-center">
                   <Link to="/faq" className="text-red-600 hover:underline">

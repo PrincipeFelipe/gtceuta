@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface OptimizedImageProps {
   src: string;
@@ -8,6 +8,7 @@ interface OptimizedImageProps {
   height?: number;
   loading?: 'lazy' | 'eager';
   sizes?: string;
+  onError?: (event: React.SyntheticEvent<HTMLImageElement, Event>) => void;
 }
 
 const OptimizedImage: React.FC<OptimizedImageProps> = ({ 
@@ -17,25 +18,49 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   width, 
   height,
   loading = 'lazy',
-  sizes = '100vw'
+  sizes = '100vw',
+  onError
 }) => {
-  // IMPORTANTE: Utilizar la ruta original sin modificar
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  
+  const handleLoad = () => {
+    setIsLoading(false);
+  };
+  
+  const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    setIsLoading(false);
+    setHasError(true);
+    
+    if (onError) {
+      onError(e);
+    } else {
+      // Fallback predeterminado
+      const target = e.target as HTMLImageElement;
+      target.src = '/images/blog/default-post.png';
+    }
+  };
+
   return (
-    <img
-      src={src} // Usar la ruta tal como viene, sin añadir /optimized/
-      alt={alt}
-      className={className}
-      width={width}
-      height={height}
-      loading={loading}
-      sizes={sizes}
-      decoding="async"
-      onError={(e) => {
-        console.error(`Error loading image: ${src}`);
-        e.currentTarget.onerror = null;
-        e.currentTarget.src = '/images/fallback-image.png';
-      }}
-    />
+    <div className={`relative ${className}`}>
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+          <div className="animate-pulse w-12 h-12 bg-gray-700 rounded-full"></div>
+        </div>
+      )}
+      <img
+        src={src}
+        alt={alt}
+        className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'}`}
+        width={width}
+        height={height}
+        loading={loading}
+        sizes={sizes}
+        decoding="async"
+        onLoad={handleLoad}
+        onError={handleError}
+      />
+    </div>
   );
 };
 

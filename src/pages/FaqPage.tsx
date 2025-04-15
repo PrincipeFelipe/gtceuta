@@ -57,7 +57,8 @@ const FaqPage = () => {
                         <a href="mailto:info@gtceuta.com" className="text-red-600 hover:underline ml-1">info@gtceuta.com</a>.
                       </p>
                       <p>
-                        Una vez completes el formulario de inscripción, recibirás un correo electrónico de confirmación con los detalles para realizar el pago.
+                        Una vez  finalizado el periodo de inscripciones, la organización se pondrá en contacto contigo para confirmar tu plaza y proporcionarte
+                        toda la información necesaria para el evento.
                       </p>
                     </div>
                   )}
@@ -77,13 +78,11 @@ const FaqPage = () => {
                   {expandedQuestions['inscripcion-2'] && (
                     <div className="mt-4 text-gray-300">
                       <p className="mb-4">
-                        El precio de la inscripción al I GT de Ceuta es de 105€, lo que incluye:
+                        El precio de la inscripción al I GT de Ceuta es de 30€, lo que incluye:
                       </p>
                       <ul className="list-disc pl-6 mb-4">
                         <li>Participación en el torneo durante los dos días</li>
-                        <li>Comidas durante los dos días del evento (desayuno y almuerzo)</li>
                         <li>Merchandising exclusivo del evento</li>
-                        <li>Recuerdo de participación</li>
                         <li>Opción a premios del torneo</li>
                       </ul>
                       <p>
@@ -94,34 +93,6 @@ const FaqPage = () => {
                   )}
                 </div>
                 
-                <div className="bg-gray-800 p-6 rounded-lg">
-                  <button 
-                    onClick={() => toggleQuestion('inscripcion-3')}
-                    className="flex justify-between items-center w-full text-left"
-                  >
-                    <h3 className="text-xl font-bold">¿Cuál es la política de cancelación?</h3>
-                    <span className="text-red-600">
-                      {expandedQuestions['inscripcion-3'] ? '−' : '+'}
-                    </span>
-                  </button>
-                  
-                  {expandedQuestions['inscripcion-3'] && (
-                    <div className="mt-4 text-gray-300">
-                      <p className="mb-4">
-                        La política de cancelación es la siguiente:
-                      </p>
-                      <ul className="list-disc pl-6 mb-4">
-                        <li>Cancelación hasta 60 días antes del evento: reembolso del 100%</li>
-                        <li>Cancelación entre 59 y 30 días antes: reembolso del 75%</li>
-                        <li>Cancelación entre 29 y 15 días antes: reembolso del 50%</li>
-                        <li>Cancelación con menos de 15 días: no se realizará reembolso</li>
-                      </ul>
-                      <p>
-                        En caso de no poder asistir, también existe la opción de transferir tu inscripción a otro jugador, contactando previamente con la organización para realizar el cambio.
-                      </p>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
 
@@ -144,7 +115,7 @@ const FaqPage = () => {
                   {expandedQuestions['reglas-1'] && (
                     <div className="mt-4 text-gray-300">
                       <p className="mb-4">
-                        Las listas deben ser de 2000 puntos exactos, siguiendo las últimas actualizaciones del reglamento de Warhammer 40.000 
+                        Las listas deben ser de 2000 puntos como máximo, siguiendo las últimas actualizaciones del reglamento de Warhammer 40.000 
                         y respetando las restricciones de formato Gran Torneo (GT). Todas las miniaturas deben estar pintadas con al menos tres 
                         colores y las bases terminadas.
                       </p>
@@ -173,8 +144,8 @@ const FaqPage = () => {
                         El torneo utilizará las misiones oficiales del Chapter Approved: Gran Torneo 2025. Se jugarán un total de 4 rondas:
                       </p>
                       <ul className="list-disc pl-6 mb-4">
-                        <li>2 rondas el sábado (mañana y tarde)</li>
-                        <li>2 rondas el domingo (mañana y tarde)</li>
+                        <li>2 rondas el sábado</li>
+                        <li>2 rondas el domingo</li>
                       </ul>
                       <p>
                         Las misiones específicas se anunciarán una semana antes del evento para que todos los jugadores puedan prepararse adecuadamente.
@@ -231,11 +202,11 @@ const FaqPage = () => {
                   {expandedQuestions['logistica-1'] && (
                     <div className="mt-4 text-gray-300">
                       <p className="mb-4">
-                        El I GT de Ceuta se celebrará en el Centro Cultural 'La Estáción de Ferrocarril', ubicado en el centro de Ceuta. 
+                        El I GT de Ceuta se celebrará en el Centro Cultural 'La Estáción de Ferrocarril', ubicado en la Avenida de Madrid en Ceuta. 
                         Es un espacio amplio y acondicionado específicamente para el evento, con acceso para personas con movilidad reducida.
                       </p>
                       <p>
-                        La dirección exacta es: Calle Ferrocarril, s/n, 51001 Ceuta.
+                        La dirección exacta es: Avda. de Madrid, s/n, 51001 Ceuta.
                       </p>
                     </div>
                   )}
@@ -259,9 +230,12 @@ const FaqPage = () => {
                       </p>
                       <ul className="list-disc pl-6 mb-4">
                         <li><strong>Hotel Ulises</strong>: Céntrico y con vistas al mar. Usa el código "GTCEUTA" para un 15% de descuento.</li>
-                        <li><strong>Parador de Ceuta</strong>: Ubicado en un entorno privilegiado. 10% de descuento para participantes.</li>
-                        <li><strong>Hotel Tryp Ceuta</strong>: Moderno y bien ubicado, con 12% de descuento para el evento.</li>
+                        <li><strong>Parador de Ceuta</strong>: Ubicado en un entorno privilegiado.</li>
+                        <li><strong>Hotel Puerta de África</strong>: Moderno y bien ubicado.</li>
                       </ul>
+                      <p>
+                        Los hoteles Ulyses y Puerta de África cuentan con un descuento de 25€ por persona para la primera noche para los participantes del torneo.
+                      </p>
                       <p>
                         Para más información sobre alojamiento, consulta nuestra 
                         <a href="/blog/descubriendo-ceuta-guia-visitantes" className="text-red-600 hover:underline ml-1">guía para visitantes</a>.
@@ -321,15 +295,10 @@ const FaqPage = () => {
                   {expandedQuestions['premios-1'] && (
                     <div className="mt-4 text-gray-300">
                       <p className="mb-4">
-                        El I GT de Ceuta contará con una amplia variedad de premios:
+                        El I GT de Ceuta contará con una amplia variedad de premios y sorteos:
                       </p>
                       <ul className="list-disc pl-6 mb-4">
-                        <li><strong>Campeón del torneo</strong>: Trofeo exclusivo, 300€ en productos de Games Workshop y clasificación directa para el Campeonato de España.</li>
-                        <li><strong>Subcampeón</strong>: Trofeo, 200€ en productos de Games Workshop.</li>
-                        <li><strong>Tercer clasificado</strong>: Trofeo, 100€ en productos de Games Workshop.</li>
-                        <li><strong>Mejor general por facción</strong>: Reconocimiento para el mejor clasificado de cada facción.</li>
-                        <li><strong>Mejor ejército pintado</strong>: Trofeo y 150€ en productos de pintura.</li>
-                        <li><strong>Mejor deportividad</strong>: Reconocimiento especial.</li>
+                        <li><strong>Campeón del torneo</strong>: Trofeo exclusivo.</li>
                       </ul>
                       <p>
                         Además, habrá sorteos entre todos los participantes con productos donados por nuestros patrocinadores.
@@ -338,37 +307,7 @@ const FaqPage = () => {
                   )}
                 </div>
                 
-                <div className="bg-gray-800 p-6 rounded-lg">
-                  <button 
-                    onClick={() => toggleQuestion('premios-2')}
-                    className="flex justify-between items-center w-full text-left"
-                  >
-                    <h3 className="text-xl font-bold">¿Cómo se evaluará el pintado?</h3>
-                    <span className="text-red-600">
-                      {expandedQuestions['premios-2'] ? '−' : '+'}
-                    </span>
-                  </button>
-                  
-                  {expandedQuestions['premios-2'] && (
-                    <div className="mt-4 text-gray-300">
-                      <p className="mb-4">
-                        La evaluación del pintado se realizará por un jurado especializado, formado por pintores profesionales 
-                        y representantes de la comunidad de Warhammer 40k. Se valorarán aspectos como:
-                      </p>
-                      <ul className="list-disc pl-6 mb-4">
-                        <li>Técnica de pintado</li>
-                        <li>Coherencia del ejército</li>
-                        <li>Conversiones y personalización</li>
-                        <li>Detalle y limpieza</li>
-                        <li>Presentación y bases</li>
-                      </ul>
-                      <p>
-                        Los jugadores interesados en participar en esta categoría deberán indicarlo al inscribirse y presentar su ejército 
-                        para evaluación antes del inicio de la primera ronda.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                
               </div>
             </div>
           </div>

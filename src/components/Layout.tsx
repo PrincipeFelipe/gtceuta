@@ -48,8 +48,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="flex flex-col">
               <p className="mb-2 font-bold">Síguenos</p>
               <div className="flex justify-center gap-4">
-                <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition duration-300" aria-label="Instagram">Instagram</a>
-                <a href="https://x.com/" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition duration-300" aria-label="Twitter">X</a>
+                <a href="https://www.instagram.com/gtceuta" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition duration-300" aria-label="Instagram">Instagram</a>
+                <a href="https://x.com/gtceuta" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition duration-300" aria-label="Twitter">X</a>
                 <a href="https://www.facebook.com/gtceuta" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition duration-300" aria-label="Facebook">Facebook</a>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, 
   MapPin as MapPinIcon, 
@@ -8,19 +8,50 @@ import {
   FileText as FileTextIcon,
   Image as ImageIcon,
   Dices as DicesIcon,
-  SwordIcon
+  SwordIcon,
+  ArrowRight
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
+import { Link } from 'react-router-dom';
 import RegistrationForm from './components/RegistrationForm';
 import PdfViewer from './components/PdfViewer';
 import ImageViewer from './components/ImageViewer';
 import Navigation from './components/Navigation';
+import blogService, { BlogPost } from './services/BlogService';
+import OptimizedImage from './components/OptimizedImage';
 
 function App() {
   const [showForm, setShowForm] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
   const [showPoster, setShowPoster] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+
+  useEffect(() => {
+    const loadBlogPosts = async () => {
+      try {
+        const posts = await blogService.getAllPosts({ 
+          onlyPublished: true 
+        });
+        setBlogPosts(posts.slice(0, 3));
+      } catch (error) {
+        console.error('Error al cargar los posts para la página principal:', error);
+      } finally {
+        setLoadingPosts(false);
+      }
+    };
+
+    loadBlogPosts();
+  }, []);
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
   const toggleForm = () => {
     setShowForm(!showForm);
@@ -353,99 +384,57 @@ function App() {
               Descubre las últimas noticias sobre el Gran Torneo y el mundo de Warhammer 40.000
             </p>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <article className="bg-gray-900 rounded-lg overflow-hidden">
-                <img 
-                  src="/images/blog/blog-1.jpg" 
-                  alt="Preparando tu primera participación en un Gran Torneo de Warhammer 40k" 
-                  className="w-full h-48 object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "/images/hero-bg.jpg";
-                  }}
-                />
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-2">Preparando tu primera participación en un Gran Torneo</h3>
-                  <p className="text-gray-400 mb-4 text-sm">Publicado: 15 de marzo, 2025</p>
-                  <p className="text-gray-300 mb-4">
-                    Consejos y recomendaciones para jugadores que participan por primera vez en un torneo oficial de Warhammer 40.000. Desde la preparación de listas hasta consejos logísticos.
-                  </p>
-                  <button 
-                    className="text-red-600 hover:underline flex items-center gap-1"
-                    onClick={() => window.alert("¡Artículo completo próximamente!")}
-                  >
-                    Leer artículo completo
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              </article>
-              
-              <article className="bg-gray-900 rounded-lg overflow-hidden">
-                <img 
-                  src="/images/blog/blog-2.jpg" 
-                  alt="Las mejores estrategias para el meta actual de Warhammer 40k" 
-                  className="w-full h-48 object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "/images/hero-bg.jpg";
-                  }}
-                />
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-2">Estrategias para el meta actual de Warhammer 40k</h3>
-                  <p className="text-gray-400 mb-4 text-sm">Publicado: 2 de abril, 2025</p>
-                  <p className="text-gray-300 mb-4">
-                    Análisis detallado del meta actual del juego, tendencias en listas de ejércitos y tácticas para contrarrestar las estrategias más populares en torneos oficiales.
-                  </p>
-                  <button 
-                    className="text-red-600 hover:underline flex items-center gap-1"
-                    onClick={() => window.alert("¡Artículo completo próximamente!")}
-                  >
-                    Leer artículo completo
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              </article>
-              
-              <article className="bg-gray-900 rounded-lg overflow-hidden">
-                <img 
-                  src="/images/blog/blog-3.jpg" 
-                  alt="Descubriendo Ceuta: Guía para visitantes del Gran Torneo" 
-                  className="w-full h-48 object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "/images/hero-bg.jpg";
-                  }}
-                />
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-2">Descubriendo Ceuta: Guía para visitantes del GT</h3>
-                  <p className="text-gray-400 mb-4 text-sm">Publicado: 10 de abril, 2025</p>
-                  <p className="text-gray-300 mb-4">
-                    Todo lo que necesitas saber para tu visita a Ceuta durante el torneo: alojamientos, restaurantes, lugares de interés y consejos prácticos para aprovechar al máximo tu estancia.
-                  </p>
-                  <button 
-                    className="text-red-600 hover:underline flex items-center gap-1"
-                    onClick={() => window.alert("¡Artículo completo próximamente!")}
-                  >
-                    Leer artículo completo
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              </article>
-            </div>
+            {loadingPosts ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+              </div>
+            ) : blogPosts.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-xl text-gray-400">Próximamente nuevos artículos...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {blogPosts.map(post => (
+                  <article key={post.id} className="bg-gray-900 rounded-lg overflow-hidden">
+                    <Link to={`/blog/${post.slug}`}>
+                      <OptimizedImage 
+                        src={post.image} 
+                        alt={post.title} 
+                        className="w-full h-48 object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = "/images/hero-bg.jpg";
+                        }}
+                      />
+                    </Link>
+                    <div className="p-6">
+                      <p className="text-gray-400 mb-4 text-sm">Publicado: {formatDate(post.date)}</p>
+                      <Link to={`/blog/${post.slug}`}>
+                        <h3 className="text-xl font-bold mb-2 hover:text-red-600 transition-colors">{post.title}</h3>
+                      </Link>
+                      <p className="text-gray-300 mb-4">
+                        {post.excerpt}
+                      </p>
+                      <Link 
+                        to={`/blog/${post.slug}`}
+                        className="text-red-600 hover:underline flex items-center gap-1"
+                      >
+                        Leer artículo completo
+                        <ArrowRight size={16} />
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
             
-            <div className="text-center mt-10">
-              <button 
-                className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition duration-300"
-                onClick={() => window.alert("¡Más artículos próximamente!")}
+            <div className="mt-12 text-center">
+              <Link 
+                to="/blog"
+                className="inline-block bg-transparent border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-6 py-3 rounded-lg transition duration-300"
               >
                 Ver todos los artículos
-              </button>
+              </Link>
             </div>
           </div>
         </section>

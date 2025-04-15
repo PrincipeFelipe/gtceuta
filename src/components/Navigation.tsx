@@ -1,6 +1,13 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FileText as FileTextIcon, Menu as MenuIcon, X as XIcon } from 'lucide-react';
+import { 
+  FileText as FileTextIcon, 
+  Menu as MenuIcon, 
+  X as XIcon,
+  User as UserIcon,
+  UserCog as UserCogIcon
+} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NavigationProps {
   togglePdf: () => void;
@@ -13,8 +20,11 @@ const Navigation: React.FC<NavigationProps> = ({
   togglePdf, 
   toggleMenu, 
   menuOpen, 
+  isHomePage = false
 }) => {
   const location = useLocation();
+  const { isAuthenticated, user } = useAuth();
+  
   const isActive = (path: string) => location.pathname === path;
 
   // Enlaces comunes a todas las páginas
@@ -81,6 +91,18 @@ const Navigation: React.FC<NavigationProps> = ({
           <span>Ver PDF</span>
         </button>
       </li>
+      <li>
+        <Link 
+          to={isAuthenticated ? '/admin' : '/login'} 
+          className="flex items-center gap-1 text-white bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition duration-300"
+          onClick={() => {
+            if (toggleMenu) toggleMenu();
+          }}
+        >
+          {isAuthenticated ? <UserCogIcon size={16} /> : <UserIcon size={16} />}
+          <span>{isAuthenticated ? 'Panel Admin' : 'Iniciar sesión'}</span>
+        </Link>
+      </li>
     </ul>
   );
 
@@ -114,8 +136,20 @@ const Navigation: React.FC<NavigationProps> = ({
           {renderDesktopLinks()}
         </div>
         
-        {/* Espacio vacío para compensar el logo y centrar el menú */}
-        <div className="hidden md:block flex-shrink-0 w-12"></div>
+        {/* Botón de admin/login a la derecha (solo en escritorio) */}
+        <div className="hidden md:flex">
+          <Link 
+            to={isAuthenticated ? '/admin' : '/login'}
+            className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full transition-colors"
+            title={isAuthenticated ? 'Panel de administración' : 'Iniciar sesión'}
+            aria-label={isAuthenticated ? 'Panel de administración' : 'Iniciar sesión'}
+          >
+            {isAuthenticated ? 
+              <UserCogIcon size={22} /> : 
+              <UserIcon size={22} />
+            }
+          </Link>
+        </div>
       </div>
       
       {/* Menú móvil expandido */}
