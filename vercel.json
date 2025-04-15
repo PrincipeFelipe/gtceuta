@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "https://www.gtceuta.com/:path*",
+      "destination": "https://gtceuta.com/:path*",
+      "permanent": true
+    }
+  ]
+}
