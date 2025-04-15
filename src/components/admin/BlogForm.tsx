@@ -219,17 +219,9 @@ const BlogForm: React.FC = () => {
   return (
     <AdminLayout>
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-white">
-            {id ? 'Editar Post' : 'Crear Nuevo Post'}
-          </h1>
-          <button
-            onClick={() => navigate('/admin/blog')}
-            className="flex items-center gap-1 text-gray-400 hover:text-white"
-          >
-            <X size={18} /> Cancelar
-          </button>
-        </div>
+        <h1 className="text-3xl font-bold text-white mb-8">
+          {id ? 'Editar Post' : 'Crear Nuevo Post'}
+        </h1>
         
         {error && (
           <div className="bg-red-900/50 border border-red-500 text-white p-4 rounded-lg mb-6">

@@ -1,12 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import Layout from '../components/Layout';
 import RegistrationForm from '../components/RegistrationForm';
 import { Link } from 'react-router-dom';
 import { FileTextIcon, CreditCardIcon, UserIcon, UsersIcon } from 'lucide-react';
+import registrationService from '../services/RegistrationService';
 
 const InscripcionPage = () => {
   const [showFAQ, setShowFAQ] = useState(false);
+  const [registrationStats, setRegistrationStats] = useState({
+    totalRegistrations: 18, // Valor inicial que se mostrará mientras se carga
+    maxPlaces: 36,
+    lastUpdated: new Date().toISOString(),
+    loading: true,
+    error: false
+  });
+
+  // Cargar las estadísticas de inscripción al montar el componente
+  useEffect(() => {
+    const loadRegistrationStats = async () => {
+      try {
+        const stats = await registrationService.getRegistrationStats();
+        setRegistrationStats({
+          totalRegistrations: stats.totalRegistrations,
+          maxPlaces: stats.maxPlaces,
+          lastUpdated: stats.lastUpdated,
+          loading: false,
+          error: false
+        });
+      } catch (error) {
+        console.error('Error al cargar estadísticas de inscripción:', error);
+        setRegistrationStats(prev => ({
+          ...prev,
+          loading: false,
+          error: true
+        }));
+      }
+    };
+
+    loadRegistrationStats();
+  }, []);
+
+  // Calcular el porcentaje de plazas ocupadas
+  const occupancyPercentage = Math.min(
+    Math.round((registrationStats.totalRegistrations / registrationStats.maxPlaces) * 100),
+    100
+  );
+
+  // Formatear la fecha de última actualización
+  const formatLastUpdated = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return 'fecha desconocida';
+    }
+  };
 
   return (
     <Layout>
@@ -27,7 +80,11 @@ const InscripcionPage = () => {
             <h1 className="text-5xl font-bold mb-6 text-red-600">Inscripción</h1>
             <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
               Reserva tu plaza para el I Gran Torneo oficial de Warhammer 40.000 en Ceuta.
-              Las plazas son limitadas a 36 participantes, ¡no te quedes sin la tuya!
+              {registrationStats.loading ? (
+              <span>Las plazas son limitadas, ¡no te quedes sin la tuya!</span>
+              ) : (
+              <span> Las plazas son limitadas a {registrationStats.maxPlaces} participantes, ¡no te quedes sin la tuya!</span>
+              )}
             </p>
           </div>
 
@@ -43,13 +100,11 @@ const InscripcionPage = () => {
                   <CreditCardIcon size={24} className="text-red-600 mr-2" />
                   <span>Precio de inscripción</span>
                 </h3>
-                <p className="text-gray-300 mb-4">El precio de la inscripción al I GT de Ceuta es de <strong className="text-white">105€</strong>, que incluye:</p>
+                <p className="text-gray-300 mb-4">El precio de la inscripción al I GT de Ceuta es de <strong className="text-white">30€</strong>, que incluye:</p>
                 <ul className="list-disc pl-6 text-gray-300 space-y-2">
                   <li>Participación en el torneo (4 partidas)</li>
-                  <li>Comidas durante los dos días del evento</li>
                   <li>Recuerdo exclusivo del torneo</li>
                   <li>Opción a premios</li>
-                  <li>Materiales del torneo</li>
                 </ul>
               </div>
 
@@ -78,16 +133,51 @@ const InscripcionPage = () => {
                 </h3>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-300">Total de plazas:</span>
-                  <span className="font-bold text-white">36</span>
+                  <span className="font-bold text-white">{registrationStats.maxPlaces}</span>
                 </div>
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-gray-300">Plazas ocupadas:</span>
-                  <span className="font-bold text-red-600">18</span>
+                  {registrationStats.loading ? (
+                    <div className="animate-pulse bg-gray-700 h-6 w-12 rounded"></div>
+                  ) : (
+                    <span className="font-bold text-red-600">{registrationStats.totalRegistrations}</span>
+                  )}
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-4">
-                  <div className="bg-red-600 h-4 rounded-full" style={{ width: '50%' }}></div>
+                  {registrationStats.loading ? (
+                    <div className="animate-pulse bg-gray-600 h-4 rounded-full" style={{ width: '50%' }}></div>
+                  ) : (
+                    <div 
+                      className={`${
+                        occupancyPercentage >= 90 ? 'bg-yellow-600' : 'bg-red-600'
+                      } h-4 rounded-full transition-all duration-500`} 
+                      style={{ width: `${occupancyPercentage}%` }}
+                    ></div>
+                  )}
                 </div>
-                <p className="mt-4 text-sm text-gray-400">Actualizado: 15 de abril de 2025</p>
+                <p className="mt-4 text-sm text-gray-400">
+                  {registrationStats.error 
+                    ? "Error al cargar datos. Mostrando información estimada."
+                    : `Actualizado: ${formatLastUpdated(registrationStats.lastUpdated)}`}
+                </p>
+                
+                {!registrationStats.loading && registrationStats.totalRegistrations >= registrationStats.maxPlaces && (
+                  <div className="mt-4 bg-yellow-900/40 p-3 rounded-lg border border-yellow-700">
+                    <p className="text-yellow-200 text-sm">
+                      <span className="font-bold">¡Todas las plazas están ocupadas!</span> Puedes 
+                      inscribirte en lista de espera por si hubiera cancelaciones.
+                    </p>
+                  </div>
+                )}
+                
+                {!registrationStats.loading && registrationStats.totalRegistrations >= registrationStats.maxPlaces * 0.9 && 
+                 registrationStats.totalRegistrations < registrationStats.maxPlaces && (
+                  <div className="mt-4 bg-yellow-900/40 p-3 rounded-lg border border-yellow-700">
+                    <p className="text-yellow-200 text-sm">
+                      <span className="font-bold">¡Quedan pocas plazas!</span> Inscríbete pronto para asegurar tu participación.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="bg-gray-800 p-6 rounded-lg">
@@ -118,14 +208,14 @@ const InscripcionPage = () => {
               
               <div className="bg-gray-800 p-6 rounded-lg text-center">
                 <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-xl font-bold text-white mx-auto mb-4">2</div>
-                <h3 className="text-lg font-bold mb-2">Realiza el pago</h3>
-                <p className="text-gray-400">Efectúa el pago siguiendo las instrucciones que recibirás por email.</p>
+                <h3 className="text-lg font-bold mb-2">Confirmación</h3>
+                <p className="text-gray-400">Una vez finalizado el periodo de inscripción, se notificará a los jugadores seleccionados.</p>
               </div>
               
               <div className="bg-gray-800 p-6 rounded-lg text-center">
                 <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-xl font-bold text-white mx-auto mb-4">3</div>
-                <h3 className="text-lg font-bold mb-2">Confirmación</h3>
-                <p className="text-gray-400">Recibirás un email confirmando tu plaza una vez verificado el pago.</p>
+                <h3 className="text-lg font-bold mb-2">Pago</h3>
+                <p className="text-gray-400">Efectúa el pago siguiendo las instrucciones que recibirás por email.</p>
               </div>
               
               <div className="bg-gray-800 p-6 rounded-lg text-center">

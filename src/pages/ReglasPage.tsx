@@ -42,7 +42,7 @@ const ReglasPage = () => {
                 <span>Ver documento completo</span>
               </button>
               <a 
-                href="/documents/Bases GT Ceuta.pdf" 
+                href="/documents/bases_gt_ceuta.pdf" // Usa el nombre sin espacios
                 download
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg transition duration-300 shadow-lg"
                 aria-label="Descargar bases en PDF"
@@ -233,7 +233,7 @@ const ReglasPage = () => {
                   </p>
                 </div>
                 <a 
-                  href="/documents/Bases GT Ceuta.pdf" 
+                  href="/documents/bases_gt_ceuta.pdf" 
                   download
                   className="flex items-center gap-2 bg-white text-green-700 hover:bg-gray-100 font-bold py-3 px-8 rounded-lg transition duration-300 shadow-md whitespace-nowrap"
                 >
@@ -259,7 +259,7 @@ const ReglasPage = () => {
                   <span>Ver documento completo</span>
                 </button>
                 <a 
-                  href="/documents/Bases GT Ceuta.pdf" 
+                  href="/documents/bases_gt_ceuta.pdf" 
                   download
                   className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-lg transition duration-300"
                 >
@@ -289,7 +289,7 @@ const ReglasPage = () => {
               <div className="bg-gray-800 p-3 flex justify-between items-center">
                 <h2 className="text-white font-bold">Bases completas - I GT de Ceuta 2025</h2>
                 <a 
-                  href="/documents/Bases GT Ceuta.pdf" 
+                  href="/documents/bases_gt_ceuta.pdf" 
                   download
                   className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-sm py-1 px-3 rounded transition duration-300"
                   title="Descargar PDF"
@@ -299,7 +299,7 @@ const ReglasPage = () => {
                 </a>
               </div>
               <iframe 
-                src="/documents/Bases GT Ceuta.pdf" 
+                src="/documents/bases_gt_ceuta.pdf" 
                 className="w-full flex-grow"
                 title="Bases del Torneo GT Ceuta"
               />

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import AdminLayout from './AdminLayout';
 import { Save, Trash2, HardDrive, Database } from 'lucide-react';
 import UserManagement from './UserManagement';
+import { toast } from 'react-toastify';
+import BlogService from '../../services/BlogService';
+import SponsorsService from '../../services/SponsorsService';
 
 const AdminSettings: React.FC = () => {
   const [exportLoading, setExportLoading] = useState(false);
@@ -9,6 +11,7 @@ const AdminSettings: React.FC = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [activeTab, setActiveTab] = useState<'blog' | 'users'>('blog');
+  const [isInitializing, setIsInitializing] = useState(false);
 
   // Función para exportar toda la base de datos
   const handleExportData = async () => {
@@ -132,117 +135,149 @@ const AdminSettings: React.FC = () => {
     }
   };
 
+  // Función para inicializar datos por defecto
+  const handleInitializeData = async () => {
+    if (!window.confirm('¿Estás seguro de inicializar los datos por defecto? Esta acción solo añadirá datos si no existen.')) return;
+    
+    setIsInitializing(true);
+    try {
+      await BlogService.initializeDefaultPosts();
+      await SponsorsService.initializeDefaultSponsors();
+      toast.success('Datos inicializados correctamente');
+    } catch (error) {
+      console.error('Error al inicializar datos:', error);
+      toast.error('Error al inicializar datos');
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
   return (
-    <AdminLayout>
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-white mb-8">Configuración</h1>
-        
-        <div className="flex border-b border-gray-700 mb-8">
-          <button
-            className={`px-4 py-2 font-medium ${activeTab === 'blog' ? 'border-b-2 border-red-600 text-white' : 'text-gray-400 hover:text-white'}`}
-            onClick={() => setActiveTab('blog')}
-          >
-            Blog
-          </button>
-          <button
-            className={`px-4 py-2 font-medium ${activeTab === 'users' ? 'border-b-2 border-red-600 text-white' : 'text-gray-400 hover:text-white'}`}
-            onClick={() => setActiveTab('users')}
-          >
-            Usuarios
-          </button>
-        </div>
-        
-        {activeTab === 'blog' && (
-          <>
-            {message && (
-              <div className={`mb-8 p-4 rounded-lg ${
-                message.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-              } text-white`}>
-                {message.text}
-              </div>
-            )}
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-gray-800 p-6 rounded-lg">
-                <div className="flex items-center mb-4">
-                  <HardDrive size={24} className="text-green-500 mr-3" />
-                  <h2 className="text-2xl font-bold text-white">Exportar datos</h2>
-                </div>
-                <p className="text-gray-300 mb-6">
-                  Descarga una copia de seguridad de todos los posts del blog en formato JSON.
-                  Este archivo se puede utilizar para restaurar los datos o transferirlos a otro sistema.
-                </p>
-                <button
-                  onClick={handleExportData}
-                  disabled={exportLoading}
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
-                >
-                  {exportLoading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                  ) : (
-                    <Save size={18} />
-                  )}
-                  <span>Exportar datos</span>
-                </button>
-              </div>
-              
-              <div className="bg-gray-800 p-6 rounded-lg">
-                <div className="flex items-center mb-4">
-                  <Database size={24} className="text-blue-500 mr-3" />
-                  <h2 className="text-2xl font-bold text-white">Importar datos</h2>
-                </div>
-                <p className="text-gray-300 mb-6">
-                  Importa posts desde un archivo JSON previamente exportado.
-                  Los posts importados se añadirán a los existentes.
-                </p>
-                <label className={`flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition cursor-pointer disabled:opacity-50 ${importLoading ? 'opacity-50' : ''}`}>
-                  {importLoading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                  ) : (
-                    <Database size={18} />
-                  )}
-                  <span>Importar datos</span>
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleImportData}
-                    disabled={importLoading}
-                    className="hidden"
-                  />
-                </label>
-              </div>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold text-white mb-8">Configuración</h1>
+      
+      <div className="flex border-b border-gray-700 mb-8">
+        <button
+          className={`px-4 py-2 font-medium ${activeTab === 'blog' ? 'border-b-2 border-red-600 text-white' : 'text-gray-400 hover:text-white'}`}
+          onClick={() => setActiveTab('blog')}
+        >
+          Blog
+        </button>
+        <button
+          className={`px-4 py-2 font-medium ${activeTab === 'users' ? 'border-b-2 border-red-600 text-white' : 'text-gray-400 hover:text-white'}`}
+          onClick={() => setActiveTab('users')}
+        >
+          Usuarios
+        </button>
+      </div>
+      
+      {activeTab === 'blog' && (
+        <>
+          {message && (
+            <div className={`mb-8 p-4 rounded-lg ${
+              message.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+            } text-white`}>
+              {message.text}
             </div>
-            
-            <div className="mt-8 bg-gray-800 p-6 rounded-lg">
+          )}
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-gray-800 p-6 rounded-lg">
               <div className="flex items-center mb-4">
-                <Trash2 size={24} className="text-red-500 mr-3" />
-                <h2 className="text-2xl font-bold text-white">Reiniciar base de datos</h2>
+                <HardDrive size={24} className="text-green-500 mr-3" />
+                <h2 className="text-2xl font-bold text-white">Exportar datos</h2>
               </div>
               <p className="text-gray-300 mb-6">
-                Esta acción eliminará <strong>TODOS</strong> los posts de la base de datos.
-                Esta operación no se puede deshacer, considera hacer una exportación antes.
+                Descarga una copia de seguridad de todos los posts del blog en formato JSON.
+                Este archivo se puede utilizar para restaurar los datos o transferirlos a otro sistema.
               </p>
               <button
-                onClick={handleResetDatabase}
-                disabled={resetLoading}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
+                onClick={handleExportData}
+                disabled={exportLoading}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
               >
-                {resetLoading ? (
+                {exportLoading ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
                 ) : (
-                  <Trash2 size={18} />
+                  <Save size={18} />
                 )}
-                <span>Reiniciar base de datos</span>
+                <span>Exportar datos</span>
               </button>
             </div>
-          </>
-        )}
-        
-        {activeTab === 'users' && (
-          <UserManagement />
-        )}
-      </div>
-    </AdminLayout>
+            
+            <div className="bg-gray-800 p-6 rounded-lg">
+              <div className="flex items-center mb-4">
+                <Database size={24} className="text-blue-500 mr-3" />
+                <h2 className="text-2xl font-bold text-white">Importar datos</h2>
+              </div>
+              <p className="text-gray-300 mb-6">
+                Importa posts desde un archivo JSON previamente exportado.
+                Los posts importados se añadirán a los existentes.
+              </p>
+              <label className={`flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition cursor-pointer disabled:opacity-50 ${importLoading ? 'opacity-50' : ''}`}>
+                {importLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                ) : (
+                  <Database size={18} />
+                )}
+                <span>Importar datos</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportData}
+                  disabled={importLoading}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+          
+          <div className="mt-8 bg-gray-800 p-6 rounded-lg">
+            <div className="flex items-center mb-4">
+              <Trash2 size={24} className="text-red-500 mr-3" />
+              <h2 className="text-2xl font-bold text-white">Reiniciar base de datos</h2>
+            </div>
+            <p className="text-gray-300 mb-6">
+              Esta acción eliminará <strong>TODOS</strong> los posts de la base de datos.
+              Esta operación no se puede deshacer, considera hacer una exportación antes.
+            </p>
+            <button
+              onClick={handleResetDatabase}
+              disabled={resetLoading}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
+            >
+              {resetLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+              ) : (
+                <Trash2 size={18} />
+              )}
+              <span>Reiniciar base de datos</span>
+            </button>
+          </div>
+
+          <div className="mt-8 bg-gray-800 p-6 rounded-lg">
+            <div className="flex items-center mb-4">
+              <HardDrive size={24} className="text-blue-500 mr-3" />
+              <h2 className="text-2xl font-bold text-white">Inicializar datos</h2>
+            </div>
+            <p className="text-gray-300 mb-6">
+              Crea entradas de blog y patrocinadores predeterminados si no existen entradas.
+            </p>
+            <button
+              onClick={handleInitializeData}
+              disabled={isInitializing}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
+            >
+              {isInitializing ? 'Inicializando...' : 'Inicializar Datos Predeterminados'}
+            </button>
+          </div>
+        </>
+      )}
+      
+      {activeTab === 'users' && (
+        <UserManagement />
+      )}
+    </div>
   );
 };
 

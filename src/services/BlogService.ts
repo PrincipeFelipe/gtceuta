@@ -215,6 +215,36 @@ class BlogService {
     
     return counts;
   }
+
+  // Añadir el método que falta:
+
+  // Agregar al final de la clase o reemplazar si ya existe
+  public async initializeDefaultPosts(): Promise<void> {
+    try {
+      const posts = await this.getAllPosts();
+      
+      if (posts.length === 0) {
+        console.log('Inicializando posts predeterminados...');
+        
+        // Importar los datos iniciales desde initialBlogData.ts
+        const initialBlogData = await import('../data/initialBlogData');
+        const defaultPosts = initialBlogData.initialBlogData || [];
+        
+        // Añadir cada post a la base de datos
+        for (const post of defaultPosts) {
+          await this.addPost({
+            ...post,
+            published: true
+          });
+        }
+        
+        console.log('Posts inicializados correctamente');
+      }
+    } catch (error) {
+      console.error('Error inicializando posts predeterminados:', error);
+      throw error;
+    }
+  }
 }
 
 // Exportamos una instancia del servicio para uso global

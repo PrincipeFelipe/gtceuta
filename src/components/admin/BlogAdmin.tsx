@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import blogService, { BlogPost } from '../../services/BlogService';
-import { Plus, Edit2, Trash2, Eye, Search } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { Search, Plus, Eye, Edit2, Trash2, Calendar, Tag } from 'lucide-react';
 import AdminLayout from './AdminLayout';
+import BlogService from '../../services/BlogService';
+import { Post } from '../../types/BlogTypes';
+import { Helmet } from 'react-helmet-async';
 
 const BlogAdmin: React.FC = () => {
-  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const navigate = useNavigate();
@@ -14,7 +17,7 @@ const BlogAdmin: React.FC = () => {
   useEffect(() => {
     const loadPosts = async () => {
       try {
-        const allPosts = await blogService.getAllPosts();
+        const allPosts = await BlogService.getAllPosts();
         setPosts(allPosts);
       } catch (error) {
         console.error('Error al cargar los posts:', error);
@@ -36,7 +39,7 @@ const BlogAdmin: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.')) {
       try {
-        await blogService.deletePost(id);
+        await BlogService.deletePost(id);
         setPosts(posts.filter(post => post.id !== id));
       } catch (error) {
         console.error('Error al eliminar el post:', error);
@@ -56,6 +59,10 @@ const BlogAdmin: React.FC = () => {
   return (
     <AdminLayout>
       <div className="container mx-auto px-4 py-8">
+        <Helmet>
+          <title>Administrar Blog - GT Ceuta</title>
+        </Helmet>
+        
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-white">Administrar Blog</h1>
           <button

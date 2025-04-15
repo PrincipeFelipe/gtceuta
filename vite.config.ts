@@ -2,7 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import compression from 'vite-plugin-compression';
 import { VitePWA } from 'vite-plugin-pwa';
+import { resolve } from 'path';
 
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
@@ -37,13 +39,17 @@ export default defineConfig({
     }),
   ],
   build: {
+    outDir: 'dist',
     reportCompressedSize: true,
+    // Importante: deshabilitar incrustación para PDFs y otros documentos
+    assetsInlineLimit: 0,
     rollupOptions: {
+      // Configuración para mejorar el manejo de archivos estáticos
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['lucide-react'],
-        },
+        manualChunks: undefined,
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
       },
     },
     // Minificación agresiva
@@ -55,6 +61,8 @@ export default defineConfig({
       },
     },
   },
+  // Asegura que la carpeta public se maneje correctamente
+  publicDir: 'public',
   // Server options para desarrollo local
   server: {
     port: 3000,

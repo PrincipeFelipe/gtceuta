@@ -74,7 +74,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* PDF Viewer Modal */}
       {showPdf && (
         <PdfViewer 
-          pdfUrl="/documents/Bases GT Ceuta.pdf" 
+          pdfUrl="/documents/bases_gt_ceuta.pdf" // Usa el nombre sin espacios
           onClose={togglePdf} 
         />
       )}

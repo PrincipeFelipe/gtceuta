@@ -9,7 +9,7 @@ const urlsToCache = [
   // Elimina los recursos que generan warnings si no son críticos para la primera carga
   // '/images/hero-bg.jpg',
   // '/images/CARTEL I GT CEUTA.jpg',
-  // '/documents/Bases GT Ceuta.pdf',
+  // '/documents/bases_gt_ceuta.pdf',
   '/assets/index-*.js',
   '/assets/index-*.css',
   'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap'

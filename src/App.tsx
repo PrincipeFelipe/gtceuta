@@ -12,15 +12,33 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
-import { Link } from 'react-router-dom';
+import { Link, Routes, Route } from 'react-router-dom';
 import RegistrationForm from './components/RegistrationForm';
 import PdfViewer from './components/PdfViewer';
 import ImageViewer from './components/ImageViewer';
 import Navigation from './components/Navigation';
 import blogService, { BlogPost } from './services/BlogService';
 import OptimizedImage from './components/OptimizedImage';
+import AdminDashboardPage from './pages/admin/AdminDashboardPage';
+import AdminBlogPage from './pages/admin/AdminBlogPage';
+import AdminSponsorsPage from './pages/admin/AdminSponsorsPage';
+import AdminSettingsPage from './pages/admin/AdminSettingsPage';
+import BlogForm from './components/admin/BlogForm';
+// Otras importaciones...
+import SobreElTorneoPage from './pages/SobreElTorneoPage';
+import ReglasPage from './pages/ReglasPage';
+import FaqPage from './pages/FaqPage';
+import BlogPage from './pages/BlogPage';
+import BlogPostPage from './pages/BlogPostPage';
+import Colaboradores from './pages/Colaboradores';
+import ContactoPage from './pages/ContactoPage';
+import GaleriaPage from './pages/GaleriaPage';
+import InscripcionPage from './pages/InscripcionPage';
+import NotFoundPage from './pages/NotFoundPage';
+import LoginPage from './pages/LoginPage';
+import ProtectedRoute from './components/ProtectedRoute';
 
-function App() {
+const HomePage = () => {
   const [showForm, setShowForm] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
   const [showPoster, setShowPoster] = useState(false);
@@ -338,7 +356,7 @@ function App() {
               <div className="bg-gray-800 p-6 rounded-lg">
                 <h3 className="text-xl font-bold mb-3">¿Qué requisitos deben cumplir las listas de ejército?</h3>
                 <p className="text-gray-300">
-                  Las listas deben ser de 2000 puntos exactos, siguiendo las últimas actualizaciones del reglamento de Warhammer 40.000 y respetando las restricciones de formato Gran Torneo (GT). Todas las miniaturas deben estar pintadas con al menos tres colores y las bases terminadas. Para conocer todos los detalles específicos sobre composición de listas, consulta el documento oficial de bases del torneo.
+                  Las listas deben ser de un máximo de 2000 puntos, siguiendo las últimas actualizaciones del reglamento de Warhammer 40.000 y respetando las restricciones de formato Gran Torneo (GT). Todas las miniaturas deben estar pintadas con al menos tres colores y las bases terminadas. Para conocer todos los detalles específicos sobre composición de listas, consulta el documento oficial de bases del torneo.
                 </p>
               </div>
               
@@ -395,29 +413,34 @@ function App() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {blogPosts.map(post => (
-                  <article key={post.id} className="bg-gray-900 rounded-lg overflow-hidden">
-                    <Link to={`/blog/${post.slug}`}>
+                  <article key={post.id} className="blog-card bg-gray-900 rounded-lg overflow-hidden transition-transform hover:transform hover:scale-[1.02]">
+                    <Link to={`/blog/${post.slug}`} className="blog-card-image block h-48 overflow-hidden">
                       <OptimizedImage 
-                        src={post.image} 
+                        src={post.image || '/images/fallback-image.png'} 
                         alt={post.title} 
-                        className="w-full h-48 object-cover"
+                        className="w-full h-48 object-cover transition-transform hover:scale-105"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
-                          target.src = "/images/hero-bg.jpg";
+                          target.src = "/images/fallback-image.png";
                         }}
                       />
                     </Link>
                     <div className="p-6">
-                      <p className="text-gray-400 mb-4 text-sm">Publicado: {formatDate(post.date)}</p>
+                      <div className="flex items-center text-gray-400 mb-2 text-sm">
+                        <time dateTime={post.date}>{formatDate(post.date)}</time>
+                        <span className="mx-2">•</span>
+                        <span className="capitalize">{post.category}</span>
+                      </div>
+                      
                       <Link to={`/blog/${post.slug}`}>
                         <h3 className="text-xl font-bold mb-2 hover:text-red-600 transition-colors">{post.title}</h3>
                       </Link>
-                      <p className="text-gray-300 mb-4">
+                      <p className="text-gray-300 mb-4 line-clamp-3">
                         {post.excerpt}
                       </p>
                       <Link 
                         to={`/blog/${post.slug}`}
-                        className="text-red-600 hover:underline flex items-center gap-1"
+                        className="text-red-600 hover:text-red-500 inline-flex items-center gap-1 font-medium"
                       >
                         Leer artículo completo
                         <ArrowRight size={16} />
@@ -444,7 +467,7 @@ function App() {
           <div className="max-w-6xl mx-auto">
             <h2 id="organizadores-title" className="text-4xl font-bold text-center mb-8 text-red-600">Organizadores del Torneo Oficial</h2>
             <p className="text-center text-lg text-gray-300 mb-8">
-              El <strong>Gran Torneo de Ceuta de Warhammer 40.000</strong> está organizado por:
+              El <strong>I GT de Ceuta de Warhammer 40.000</strong> está organizado por:
             </p>
             <div className="text-center">
               <div className="flex flex-col md:flex-row justify-center items-center gap-12">
@@ -456,7 +479,7 @@ function App() {
                 <div className="bg-gray-800 p-6 rounded-lg w-full md:w-1/2 max-w-sm">
                   <h3 className="text-2xl font-bold mb-4">Megaverse</h3>
                   <p className="text-gray-400 mb-4">Club de Wargames y Rol de Ceuta, con una amplia experiencia en la organización de eventos oficiales de Warhammer 40k.</p>
-                  <a href="#info" className="text-red-600 hover:underline">Más información</a>
+                  <a href="https://clubmegaverse.com" className="text-red-600 hover:underline">Más información</a>
                 </div>
               </div>
             </div>
@@ -496,8 +519,8 @@ function App() {
               <div className="flex flex-col">
                 <p className="mb-2 font-bold">Síguenos</p>
                 <div className="flex justify-center gap-4">
-                  <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition duration-300" aria-label="Instagram">Instagram</a>
-                  <a href="https://x.com/" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition duration-300" aria-label="Twitter">X</a>
+                  <a href="https://www.instagram.com/gtceuta" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition duration-300" aria-label="Instagram">Instagram</a>
+                  <a href="https://x.com/gtceuta" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition duration-300" aria-label="Twitter">X</a>
                   <a href="https://www.facebook.com/gtceuta" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition duration-300" aria-label="Facebook">Facebook</a>
                 </div>
               </div>
@@ -541,7 +564,7 @@ function App() {
         {/* PDF Viewer Modal */}
         {showPdf && (
           <PdfViewer 
-            pdfUrl="/documents/Bases GT Ceuta.pdf" 
+            pdfUrl="/documents/bases_gt_ceuta.pdf" 
             onClose={togglePdf} 
           />
         )}
@@ -555,6 +578,37 @@ function App() {
         )}
       </div>
     </>
+  );
+}
+
+// Función App principal que maneja las rutas
+function App() {
+  return (
+    <Routes>
+      {/* Rutas públicas */}
+      <Route path="/" element={<HomePage />} />
+      <Route path="/sobre-el-torneo" element={<SobreElTorneoPage />} />
+      <Route path="/bases-del-torneo" element={<ReglasPage />} />
+      <Route path="/faq" element={<FaqPage />} />
+      <Route path="/blog" element={<BlogPage />} />
+      <Route path="/blog/:slug" element={<BlogPostPage />} />
+      <Route path="/colaboradores" element={<Colaboradores />} />
+      <Route path="/contacto" element={<ContactoPage />} />
+      <Route path="/galeria" element={<GaleriaPage />} />
+      <Route path="/inscripcion" element={<InscripcionPage />} />
+      
+      {/* Rutas de administración */}
+      <Route path="/admin" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
+      <Route path="/admin/blog" element={<ProtectedRoute><AdminBlogPage /></ProtectedRoute>} />
+      <Route path="/admin/blog/new" element={<ProtectedRoute><BlogForm /></ProtectedRoute>} />
+      <Route path="/admin/blog/edit/:id" element={<ProtectedRoute><BlogForm /></ProtectedRoute>} />
+      <Route path="/admin/sponsors" element={<ProtectedRoute><AdminSponsorsPage /></ProtectedRoute>} />
+      <Route path="/admin/settings" element={<ProtectedRoute><AdminSettingsPage /></ProtectedRoute>} />
+      
+      {/* Ruta de login y 404 */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
   );
 }
 

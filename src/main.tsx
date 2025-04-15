@@ -25,6 +25,9 @@ import BlogImportExport from './components/admin/BlogImportExport';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
+// Añadir estas importaciones:
+import AdminSponsorsPage from './pages/admin/AdminSponsorsPage';
+
 // Importar CSS
 import './index.css';
 import './styles/blog-content.css';
@@ -32,56 +35,35 @@ import './styles/quill-dark.css';
 import './styles/tiptap.css';
 import './styles/blog-card.css'; // Añadir este import
 
+import blogService from './services/BlogService'; // Importar correctamente
+import SponsorsService from './services/SponsorsService';
+
 // Componente para gestionar el scroll y el seguimiento de páginas
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   
   useEffect(() => {
     window.scrollTo(0, 0);
-    // Log de vista de página para analítica
-    logPageView();
   }, [pathname]);
   
   return null;
 };
 
-// Función para seguimiento de pageviews para Analytics
-const logPageView = () => {
-  if (typeof window !== 'undefined' && 'gtag' in window) {
-    window.gtag('config', 'G-XXXXXXXXXX', {
-      page_path: window.location.pathname + window.location.search
-    });
-  }
-};
-
-// Cargar datos iniciales del blog si no hay datos
-import blogService from './services/BlogService';
-import { initialBlogData } from './data/initialBlogData';
-
-// Cargar datos iniciales del blog si no existen
-const loadInitialBlogData = async () => {
+// Función para inicializar datos
+const initializeData = async () => {
   try {
-    // Verificar si hay posts en la base de datos
-    const posts = await blogService.getAllPosts();
-    if (posts.length === 0) {
-      console.log('No se encontraron posts, cargando datos iniciales...');
-      // Si no hay posts, cargar datos iniciales
-      await blogService.importPosts(initialBlogData);
-      console.log('Datos iniciales del blog importados con éxito');
-    } else {
-      console.log(`Base de datos del blog ya contiene ${posts.length} posts`);
-    }
+    // Usar la instancia importada correctamente
+    await blogService.initializeDefaultPosts();
+    await SponsorsService.initializeDefaultSponsors();
+    
+    console.log('Datos inicializados correctamente');
   } catch (error) {
-    console.error('Error al cargar datos iniciales del blog:', error);
+    console.error('Error al inicializar datos:', error);
   }
 };
 
-// Asegurar que IndexedDB está disponible antes de intentar cargar datos
-if ('indexedDB' in window) {
-  loadInitialBlogData();
-} else {
-  console.error('IndexedDB no está disponible en este navegador. El blog no funcionará correctamente.');
-}
+// Llama a la función para inicializar datos
+initializeData();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -112,6 +94,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="/admin/blog/edit/:id" element={<BlogForm />} />
               <Route path="/admin/blog/import-export" element={<BlogImportExport />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/admin/sponsors" element={<AdminSponsorsPage />} />
             </Route>
             
             <Route path="*" element={<NotFoundPage />} />
