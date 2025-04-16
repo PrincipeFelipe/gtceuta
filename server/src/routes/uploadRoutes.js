@@ -9,7 +9,4 @@ router.post('/upload/sponsor-image', uploadController.uploadSponsorImage);
 router.post('/upload/content-image', uploadController.uploadContentImage);
 router.post('/upload/image', uploadController.uploadImage);
 
-// Ruta para eliminar imágenes
-router.delete('/delete-image', uploadController.deleteImage);
-
 module.exports = router;
