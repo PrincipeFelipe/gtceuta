@@ -49,12 +49,26 @@ const ScrollToTop = () => {
   return null;
 };
 
-// Función para inicializar datos
+// Ajustar la función de inicialización de datos
 const initializeData = async () => {
   try {
-    // Usar la instancia importada correctamente
-    await blogService.initializeDefaultPosts();
-    await SponsorsService.initializeDefaultSponsors();
+    console.log('Iniciando carga de datos por defecto...');
+    
+    if (typeof blogService.initializeDefaultPosts === 'function') {
+      console.log('Inicializando posts de blog...');
+      await blogService.initializeDefaultPosts();
+      console.log('Posts inicializados correctamente');
+    } else {
+      console.warn('blogService.initializeDefaultPosts no es una función');
+    }
+
+    if (typeof SponsorsService.initializeDefaultSponsors === 'function') {
+      console.log('Inicializando patrocinadores...');
+      await SponsorsService.initializeDefaultSponsors();
+      console.log('Patrocinadores inicializados correctamente');
+    } else {
+      console.warn('SponsorsService.initializeDefaultSponsors no es una función');
+    }
     
     console.log('Datos inicializados correctamente');
   } catch (error) {
@@ -63,7 +77,7 @@ const initializeData = async () => {
 };
 
 // Llama a la función para inicializar datos
-initializeData();
+initializeData().catch(console.error);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

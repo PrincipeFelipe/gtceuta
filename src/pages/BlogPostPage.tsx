@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import Layout from '../components/Layout';
-import OptimizedImage from '../components/OptimizedImage';
 import blogService, { BlogPost } from '../services/BlogService';
+import OptimizedImage from '../components/OptimizedImage';
+// Importar la función normalizeImageUrl
+import { normalizeImageUrl } from '../utils/imageUtils';
 // Importar los estilos del blog
 import '../styles/blog-content.css';
 // Importar el componente BlogContent
@@ -75,7 +77,7 @@ const BlogPostPage = () => {
         <meta name="description" content={post.excerpt} />
         <meta property="og:title" content={post.title} />
         <meta property="og:description" content={post.excerpt} />
-        <meta property="og:image" content={post.image} />
+        <meta property="og:image" content={normalizeImageUrl(post.image)} />
         <meta property="og:type" content="article" />
         <meta property="article:published_time" content={post.date} />
       </Helmet>

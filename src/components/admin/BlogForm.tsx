@@ -9,6 +9,11 @@ import ImageEditor from './ImageEditor';
 import TiptapEditor, { TiptapEditorRef } from './TiptapEditor';
 import '../../styles/tiptap.css';
 
+// Añadir la importación
+import { normalizeImageUrl } from '../../utils/imageUtils';
+
+import { API_URL } from '../../config/api';
+
 // Categorías disponibles
 const categories = [
   { id: 'guias', name: 'Guías y tutoriales' },
@@ -77,6 +82,54 @@ const BlogForm: React.FC = () => {
     return tempDiv.innerHTML;
   };
 
+  // Añadir esta función para verificar las imágenes en el HTML
+  const checkImagesInContent = (html: string) => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    const images = tempDiv.querySelectorAll('img');
+    console.log(`Encontradas ${images.length} imágenes en el contenido:`);
+    
+    // Crear un array para seguir el estado de carga
+    const imagesToLoad = images.length;
+    let loadedImages = 0;
+    let errorImages = 0;
+    
+    images.forEach((img, index) => {
+      // Normalizar la URL (por si acaso)
+      const originalSrc = img.src;
+      let normalizedSrc = originalSrc.replace(/\\/g, '/');
+      
+      console.log(`${index + 1}. src original: ${originalSrc}`);
+      
+      if (normalizedSrc !== originalSrc) {
+        console.log(`   src normalizada: ${normalizedSrc}`);
+      }
+      
+      // Verificar la carga de la imagen correctamente
+      const testImg = document.createElement('img');
+      
+      testImg.onload = () => {
+        loadedImages++;
+        console.log(`✅ Imagen ${index + 1} cargada correctamente (${loadedImages}/${imagesToLoad})`);
+      };
+      
+      testImg.onerror = (e) => {
+        errorImages++;
+        console.error(`❌ Error al cargar la imagen ${index + 1}:`, e);
+        console.error(`   URL problemática: ${testImg.src}`);
+        
+        // Intento de diagnóstico adicional
+        const imgUrl = new URL(testImg.src);
+        console.log(`   - Protocolo: ${imgUrl.protocol}`);
+        console.log(`   - Host: ${imgUrl.host}`);
+        console.log(`   - Pathname: ${imgUrl.pathname}`);
+      };
+      
+      // Asignar la URL normalizada
+      testImg.src = normalizedSrc;
+    });
+  };
+
   // Cargar datos del post si estamos en modo edición
   useEffect(() => {
     const loadPost = async () => {
@@ -139,10 +192,43 @@ const BlogForm: React.FC = () => {
       .replace(/-+/g, '-'); // Evitar múltiples guiones seguidos
   };
 
+  // Añade esta función para normalizar URLs en el contenido HTML
+  const normalizeContentImageUrls = (html: string): string => {
+    // Crear un DOM temporal para manipular el HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // Encontrar todas las imágenes
+    const images = tempDiv.querySelectorAll('img');
+    let modified = false;
+    
+    images.forEach(img => {
+      const originalSrc = img.getAttribute('src') || '';
+      
+      // Si la URL contiene backslashes, normalizarla
+      if (originalSrc.includes('\\')) {
+        const normalizedSrc = originalSrc.replace(/\\/g, '/');
+        img.setAttribute('src', normalizedSrc);
+        modified = true;
+        console.log(`URL de imagen normalizada: ${originalSrc} -> ${normalizedSrc}`);
+      }
+    });
+    
+    // Devolver el HTML modificado solo si hubo cambios
+    return modified ? tempDiv.innerHTML : html;
+  };
+
   // Manejar cambios en los campos del formulario
   const handleChange = (field: keyof Omit<BlogPost, 'id'>, value: any) => {
     setFormData(prev => {
-      const updated = { ...prev, [field]: value };
+      let updatedValue = value;
+      
+      // Si el campo es 'content', normalizar URLs de imágenes
+      if (field === 'content') {
+        updatedValue = normalizeContentImageUrls(value);
+      }
+      
+      const updated = { ...prev, [field]: updatedValue };
       
       // Actualizar el slug automáticamente si se cambió el título
       if (field === 'title') {
@@ -179,30 +265,86 @@ const BlogForm: React.FC = () => {
     }
   };
 
-  // Manejar subida de imagen
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Modificar handleImageChange para subir la imagen al servidor
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Convertir la imagen a base64 para almacenarla
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      handleChange('image', reader.result as string);
-    };
-    reader.readAsDataURL(file);
+  
+    try {
+      // Mostrar indicador de carga si lo necesitas
+      // setUploading(true);
+      
+      // Convertir a base64 para enviar al servidor
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      
+      // Busca la sección donde se sube la imagen destacada
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        
+        // IMPORTANTE: Quitar el /api de la ruta
+        const response = await fetch(`${API_URL}/upload/blog-image`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ image: base64 })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Error al subir la imagen');
+        }
+        
+        const data = await response.json();
+        handleChange('image', data.url);
+      };
+    } catch (error) {
+      console.error('Error al subir imagen:', error);
+      alert('Error al subir la imagen. Inténtalo de nuevo.');
+      // setUploading(false);
+    }
   };
 
   // Modificar el manejador de imágenes para el contenido
   const handleContentImage = (file: File) => {
     const reader = new FileReader();
+    reader.readAsDataURL(file);
+    
     reader.onloadend = () => {
       setImageEditorState({
         open: true,
         src: reader.result as string,
         callback: (editedImageUrl) => {
+          console.log("Imagen editada con URL:", editedImageUrl);
+          
+          // Normalizar URL para asegurar que es accesible en el frontend
+          let imageUrl = editedImageUrl;
+          
+          // Asegurarse de que la URL sea absoluta con el servidor correcto
+          if (imageUrl && !imageUrl.startsWith('http')) {
+            // Si la URL es relativa, construirla correctamente
+            // Eliminar barra inicial si existe para evitar doble barra
+            if (imageUrl.startsWith('/')) {
+              imageUrl = imageUrl.substring(1);
+            }
+            
+            // Agregar la URL base
+            imageUrl = `${window.location.origin}/${imageUrl}`;
+          }
+          
+          console.log("URL final de imagen:", imageUrl);
+          
           // Usar la referencia para insertar la imagen editada
           if (tiptapRef.current) {
-            tiptapRef.current.insertImage(editedImageUrl);
+            tiptapRef.current.insertImage(imageUrl);
+            
+            // Forzar actualización del formulario también después de un tiempo
+            setTimeout(() => {
+              if (tiptapRef.current?.editor) {
+                const html = tiptapRef.current.editor.getHTML();
+                handleChange('content', html);
+              }
+            }, 100);
           }
           
           setImageEditorState({
@@ -213,7 +355,95 @@ const BlogForm: React.FC = () => {
         }
       });
     };
-    reader.readAsDataURL(file);
+  };
+
+  // En la sección de previsualización de imagen:
+  const renderImagePreview = () => {
+    if (formData.image) {
+      return (
+        <div className="relative h-40 bg-gray-700 rounded-lg overflow-hidden">
+          <img 
+            src={normalizeImageUrl(formData.image)} 
+            alt="Vista previa" 
+            className="w-full h-full object-cover" 
+            onError={(e) => {
+              // Si hay un error, usar una imagen de placeholder
+              (e.target as HTMLImageElement).src = '/images/fallback-image.png';
+            }}
+          />
+          <button 
+            type="button"
+            onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+            className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 transition-colors"
+            aria-label="Eliminar imagen"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 011.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      );
+    }
+  
+    return (
+      <div className="flex items-center justify-center h-40 bg-gray-700 rounded-lg border-2 border-dashed border-gray-500">
+        <span className="text-gray-400">Sin imagen</span>
+      </div>
+    );
+  };
+
+  // Añade este componente temporal para probar el acceso a las imágenes
+  // Colócalo antes del return principal
+  const TestImageComponent = () => {
+    const [imagePath, setImagePath] = useState('');
+    const [testResult, setTestResult] = useState<string | null>(null);
+    
+    const testImage = () => {
+      if (!imagePath) return;
+      
+      const img = new Image();
+      img.onload = () => setTestResult(`✅ La imagen cargó correctamente: ${imagePath}`);
+      img.onerror = () => setTestResult(`❌ Error al cargar la imagen: ${imagePath}`);
+      img.src = imagePath;
+    };
+    
+    return (
+      <div className="mb-6 p-4 bg-gray-800 rounded-lg">
+        <h3 className="font-bold text-white mb-2">Prueba de acceso a imágenes</h3>
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text"
+            value={imagePath}
+            onChange={(e) => setImagePath(e.target.value)}
+            className="flex-1 p-2 rounded-lg bg-gray-700 border border-gray-600 text-white"
+            placeholder="Pega la URL de la imagen a probar"
+          />
+          <button
+            type="button"
+            onClick={testImage}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+          >
+            Probar
+          </button>
+        </div>
+        {testResult && (
+          <div className={`mt-2 p-2 rounded ${testResult.startsWith('✅') ? 'bg-green-900/50' : 'bg-red-900/50'}`}>
+            {testResult}
+          </div>
+        )}
+        {imagePath && (
+          <div className="mt-2">
+            <p className="text-sm text-gray-400 mb-1">Vista previa:</p>
+            <img 
+              src={imagePath} 
+              alt="Test" 
+              className="max-h-32 border border-gray-700 rounded"
+              onError={() => console.log("Error al cargar vista previa")} 
+            />
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -230,6 +460,8 @@ const BlogForm: React.FC = () => {
             </p>
           </div>
         )}
+
+        <TestImageComponent />
         
         {loading ? (
           <div className="flex justify-center my-12">
@@ -315,13 +547,7 @@ const BlogForm: React.FC = () => {
               </label>
               
               <div className="flex items-center gap-4">
-                {formData.image && (
-                  <img
-                    src={formData.image}
-                    alt="Vista previa"
-                    className="h-20 w-32 object-cover rounded border border-gray-600"
-                  />
-                )}
+                {renderImagePreview()}
                 <div className="flex-1">
                   <input
                     type="file"
@@ -354,7 +580,10 @@ const BlogForm: React.FC = () => {
               <TiptapEditor 
                 ref={tiptapRef}
                 value={formData.content}
-                onChange={(content) => handleChange('content', content)}
+                onChange={(content) => {
+                  handleChange('content', content);
+                  checkImagesInContent(content);
+                }}
                 onImageSelect={handleContentImage}
               />
               

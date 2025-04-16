@@ -12,6 +12,9 @@ import { Bold, Italic, Underline as UnderlineIcon, Strikethrough, AlignLeft,
   Link as LinkIcon, Image as ImageIcon, Type, Heading1, Heading2, Heading3, 
   X, Quote, Code, Palette } from 'lucide-react';
 
+// Añadir esta importación
+import { API_URL } from '../../config/api';
+
 export interface TiptapEditorRef {
   insertImage: (url: string) => void;
 }
@@ -35,6 +38,8 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
         allowBase64: true, // Importante para imágenes base64
         HTMLAttributes: {
           class: 'tiptap-image',
+          // Añadir estilos adicionales para asegurar que la imagen es visible
+          style: 'max-width: 100%; height: auto; display: block;'
         },
       }),
       Link.configure({
@@ -60,10 +65,39 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
   useImperativeHandle(ref, () => ({
     insertImage: (url: string) => {
       if (editor) {
-        // Insertar la imagen en la posición del cursor
-        editor.chain().focus().setImage({ src: url }).run();
+        console.log("Insertando imagen con URL:", url);
+        
+        try {
+          // Insertar la imagen con la URL correcta
+          editor.chain()
+            .focus()
+            .setImage({ 
+              src: url,
+              alt: 'Imagen del blog',
+              title: 'Imagen insertada' 
+            })
+            .run();
+          
+          // Comprobar que la imagen se insertó correctamente
+          setTimeout(() => {
+            const html = editor.getHTML();
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const images = tempDiv.querySelectorAll('img');
+            images.forEach(img => {
+              console.log("Imagen en editor:", img.src);
+            });
+            
+            onChange(html);
+          }, 50);
+        } catch (error) {
+          console.error("Error al insertar imagen:", error);
+        }
+      } else {
+        console.error("Editor no disponible");
       }
-    }
+    },
+    editor // Exponer el editor si necesitas acceder a él externamente
   }));
 
   // Modificar el hook useEffect que actualiza el contenido
@@ -96,6 +130,9 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
     }
   }, [value, editor]);
 
+  // Modificar la función de subida de imagen para usar la API
+
+  // Modificar la función addImage para manejar mejor la respuesta del servidor
   const addImage = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -109,13 +146,73 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
           return;
         }
 
-        // Fallback si no hay onImageSelect: usar base64
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const url = reader.result as string;
-          editor?.chain().focus().setImage({ src: url }).run();
-        };
-        reader.readAsDataURL(file);
+        try {
+          // Convertir imagen a base64
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          
+          // Modifica la función addImage para normalizar mejor las URLs
+
+          reader.onloadend = async () => {
+            const base64 = reader.result as string;
+            
+            try {
+              // Subir imagen al servidor
+              const response = await fetch(`${API_URL}/upload/content-image`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ image: base64 })
+              });
+              
+              if (!response.ok) {
+                throw new Error('Error al subir la imagen');
+              }
+              
+              const data = await response.json();
+              
+              // Normalizar la URL para asegurar consistencia
+              let imageUrl = data.url;
+              
+              // Asegurarse de que no hay backslashes
+              imageUrl = imageUrl.replace(/\\/g, '/');
+              
+              // Asegurarse de que la URL es absoluta para el navegador
+              if (imageUrl && !imageUrl.startsWith('http')) {
+                if (!imageUrl.startsWith('/')) {
+                  imageUrl = '/' + imageUrl;
+                }
+                
+                // Opcional: si necesitas URLs absolutas completas (con dominio)
+                // imageUrl = window.location.origin + imageUrl;
+              }
+              
+              console.log("Imagen normalizada con URL:", imageUrl);
+              
+              // Insertar imagen con la URL normalizada
+              editor?.chain().focus().setImage({ 
+                src: imageUrl,
+                alt: 'Imagen del blog',
+                title: 'Imagen insertada' 
+              }).run();
+              
+              // Forzar actualización del editor
+              setTimeout(() => {
+                const currentContent = editor?.getHTML();
+                if (currentContent) {
+                  onChange(currentContent);
+                }
+              }, 100);
+            } catch (error) {
+              console.error('Error al subir o insertar imagen:', error);
+              alert('Error al subir la imagen. Inténtalo de nuevo.');
+            }
+          };
+        } catch (error) {
+          console.error('Error al subir imagen:', error);
+          alert('Error al subir la imagen. Inténtalo de nuevo.');
+        }
       }
     };
     input.click();

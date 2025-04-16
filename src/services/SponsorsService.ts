@@ -1,282 +1,290 @@
-import { openDB } from 'idb';
-import { v4 as uuidv4 } from 'uuid';
-import { Sponsor, SponsorFormData, SponsorType } from '../types/SponsorTypes';
+// URL base para la API
+const API_URL = 'http://localhost:4000/api';
 
-const DB_NAME = 'gtceuta_sponsors_db';
-const DB_VERSION = 1;
-const STORE_NAME = 'sponsors';
+export interface Sponsor {
+  id: number;
+  name: string;
+  logo: string;
+  url: string;
+  description: string;
+  tier: string;
+  active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Función para subir una imagen al servidor
+async function uploadImage(imageBase64: string): Promise<string> {
+  try {
+    // Si ya es una URL, no es necesario subirla
+    if (!imageBase64 || !imageBase64.startsWith('data:image')) {
+      return imageBase64;
+    }
+    
+    const response = await fetch(`${API_URL}/upload/sponsor-image`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ image: imageBase64 })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error al subir la imagen: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.url;
+  } catch (error) {
+    console.error('Error subiendo imagen:', error);
+    throw error;
+  }
+}
 
 class SponsorsService {
-  private async getDB() {
-    return openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-          store.createIndex('by-type', 'type', { unique: false });
-          store.createIndex('by-active', 'active', { unique: false });
-          store.createIndex('by-order', 'order', { unique: false });
-        }
-      },
-    });
-  }
-
-  public async getAllSponsors(): Promise<Sponsor[]> {
+  // Obtener todos los patrocinadores
+  async getAllSponsors(): Promise<Sponsor[]> {
     try {
-      const db = await this.getDB();
-      return await db.getAll(STORE_NAME);
-    } catch (error) {
-      console.error('Error al obtener patrocinadores:', error);
-      return [];
-    }
-  }
-
-  public async getSponsorsByType(type: SponsorType): Promise<Sponsor[]> {
-    try {
-      const db = await this.getDB();
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const index = tx.store.index('by-type');
-      const sponsors = await index.getAll(type);
-      
-      // Ordenar por el campo order
-      return sponsors.sort((a, b) => a.order - b.order).filter(s => s.active);
-    } catch (error) {
-      console.error(`Error al obtener patrocinadores de tipo ${type}:`, error);
-      return [];
-    }
-  }
-
-  public async getSponsorById(id: string): Promise<Sponsor | undefined> {
-    try {
-      const db = await this.getDB();
-      return await db.get(STORE_NAME, id);
-    } catch (error) {
-      console.error('Error al obtener patrocinador por ID:', error);
-      return undefined;
-    }
-  }
-
-  public async createSponsor(formData: SponsorFormData): Promise<Sponsor> {
-    try {
-      const db = await this.getDB();
-      
-      // Obtener el último orden para este tipo
-      const allSponsors = await this.getSponsorsByType(formData.type);
-      const maxOrder = allSponsors.length > 0 
-        ? Math.max(...allSponsors.map(s => s.order)) 
-        : 0;
-      
-      // Manejar la imagen si es un File
-      let imageUrl = formData.image as string;
-      if (formData.image instanceof File) {
-        imageUrl = await this.processImage(formData.image);
+      const response = await fetch(`${API_URL}/sponsors`);
+      if (!response.ok) {
+        throw new Error(`Error al obtener los patrocinadores: ${response.statusText}`);
       }
+      
+      const sponsors = await response.json();
+      return sponsors;
+    } catch (error) {
+      console.error('Error en getAllSponsors:', error);
+      throw error;
+    }
+  }
 
-      const now = new Date().toISOString();
-      const sponsor: Sponsor = {
-        id: uuidv4(),
-        name: formData.name,
-        image: imageUrl,
-        description: formData.description,
-        url: formData.url,
-        type: formData.type,
-        active: formData.active,
-        order: maxOrder + 1,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      await db.add(STORE_NAME, sponsor);
+  // Obtener un patrocinador por ID
+  async getSponsorById(id: number): Promise<Sponsor | null> {
+    try {
+      const response = await fetch(`${API_URL}/sponsors/${id}`);
+      
+      if (response.status === 404) {
+        return null;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Error al obtener el patrocinador: ${response.statusText}`);
+      }
+      
+      const sponsor = await response.json();
       return sponsor;
     } catch (error) {
-      console.error('Error al crear patrocinador:', error);
+      console.error('Error en getSponsorById:', error);
       throw error;
     }
   }
 
-  public async updateSponsor(id: string, formData: SponsorFormData): Promise<Sponsor> {
+  // Añadir un nuevo patrocinador
+  async addSponsor(sponsor: Omit<Sponsor, 'id'>): Promise<Sponsor> {
     try {
-      const db = await this.getDB();
-      const existingSponsor = await this.getSponsorById(id);
+      // Primero subir la imagen del logo si es base64
+      let logoUrl = sponsor.logo;
+      if (sponsor.logo && sponsor.logo.startsWith('data:image')) {
+        logoUrl = await uploadImage(sponsor.logo);
+      }
       
-      if (!existingSponsor) {
-        throw new Error('Patrocinador no encontrado');
-      }
-
-      // Manejar la imagen si es un File
-      let imageUrl = formData.image as string;
-      if (formData.image instanceof File) {
-        imageUrl = await this.processImage(formData.image);
-      }
-
-      const updatedSponsor: Sponsor = {
-        ...existingSponsor,
-        name: formData.name,
-        image: imageUrl,
-        description: formData.description,
-        url: formData.url,
-        type: formData.type,
-        active: formData.active,
-        updatedAt: new Date().toISOString(),
+      const sponsorData = {
+        ...sponsor,
+        logo: logoUrl
       };
+      
+      const response = await fetch(`${API_URL}/sponsors`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sponsorData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error al crear el patrocinador: ${response.statusText}`);
+      }
+      
+      const newSponsor = await response.json();
+      return newSponsor;
+    } catch (error) {
+      console.error('Error en addSponsor:', error);
+      throw error;
+    }
+  }
 
-      await db.put(STORE_NAME, updatedSponsor);
+  // Actualizar un patrocinador existente
+  async updateSponsor(sponsor: Sponsor): Promise<Sponsor> {
+    try {
+      // Subir la imagen del logo si es base64
+      let logoUrl = sponsor.logo;
+      if (sponsor.logo && sponsor.logo.startsWith('data:image')) {
+        logoUrl = await uploadImage(sponsor.logo);
+      }
+      
+      const sponsorData = {
+        ...sponsor,
+        logo: logoUrl
+      };
+      
+      const response = await fetch(`${API_URL}/sponsors/${sponsor.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sponsorData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error al actualizar el patrocinador: ${response.statusText}`);
+      }
+      
+      // Obtener el patrocinador actualizado
+      const updatedSponsor = await this.getSponsorById(sponsor.id);
+      if (!updatedSponsor) {
+        throw new Error('No se pudo obtener el patrocinador actualizado');
+      }
+      
       return updatedSponsor;
     } catch (error) {
-      console.error('Error al actualizar patrocinador:', error);
+      console.error('Error en updateSponsor:', error);
       throw error;
     }
   }
 
-  public async deleteSponsor(id: string): Promise<void> {
+  // Eliminar un patrocinador
+  async deleteSponsor(id: number): Promise<void> {
     try {
-      const db = await this.getDB();
-      await db.delete(STORE_NAME, id);
-    } catch (error) {
-      console.error('Error al eliminar patrocinador:', error);
-      throw error;
-    }
-  }
-
-  public async updateSponsorOrder(sponsorId: string, newOrder: number): Promise<void> {
-    try {
-      const db = await this.getDB();
-      const sponsor = await this.getSponsorById(sponsorId);
+      const response = await fetch(`${API_URL}/sponsors/${id}`, {
+        method: 'DELETE'
+      });
       
-      if (!sponsor) {
-        throw new Error('Patrocinador no encontrado');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error al eliminar el patrocinador: ${response.statusText}`);
       }
-
-      const updatedSponsor = {
-        ...sponsor,
-        order: newOrder,
-        updatedAt: new Date().toISOString(),
-      };
-
-      await db.put(STORE_NAME, updatedSponsor);
     } catch (error) {
-      console.error('Error al actualizar orden del patrocinador:', error);
+      console.error('Error en deleteSponsor:', error);
       throw error;
     }
   }
-
-  public async bulkUpdateOrder(reorderedSponsors: { id: string; order: number }[]): Promise<void> {
+  
+  // Importar patrocinadores
+  async importSponsors(sponsors: Sponsor[]): Promise<{ created: number; updated: number; errors: number }> {
     try {
-      const db = await this.getDB();
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-
-      for (const item of reorderedSponsors) {
-        const sponsor = await tx.store.get(item.id);
-        if (sponsor) {
-          sponsor.order = item.order;
-          sponsor.updatedAt = new Date().toISOString();
-          await tx.store.put(sponsor);
-        }
+      const response = await fetch(`${API_URL}/sponsors/import`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sponsors)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error al importar los patrocinadores: ${response.statusText}`);
       }
-
-      await tx.done;
+      
+      const result = await response.json();
+      return result.results || { created: 0, updated: 0, errors: 0 };
     } catch (error) {
-      console.error('Error al actualizar orden de patrocinadores:', error);
+      console.error('Error en importSponsors:', error);
       throw error;
     }
   }
 
-  // Función para procesar y almacenar la imagen
-  private async processImage(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-    });
-  }
-
-  // Método para cargar datos iniciales
+  // Inicializar datos por defecto
   public async initializeDefaultSponsors(): Promise<void> {
     try {
-      const sponsors = await this.getAllSponsors();
+      console.log('Intentando inicializar patrocinadores predeterminados...');
       
-      if (sponsors.length === 0) {
-        console.log('Inicializando patrocinadores por defecto...');
+      try {
+        // Verificar si ya hay patrocinadores en la API
+        const existingSponsors = await this.getAllSponsors();
         
-        const defaultSponsors: SponsorFormData[] = [
-          {
-            name: 'Consejería de Turismo de Ceuta',
-            image: '/images/sponsors/logo_turismo_ceuta.png',
-            description: 'Entidad pública dedicada a la promoción de Ceuta como un destino atractivo para visitantes y eventos.',
-            url: 'https://turismodeceuta.com/',
-            type: 'patrocinador',
-            active: true
-          },
-          {
-            name: 'Consejería de Educación y Cultura de Ceuta',
-            image: '/images/sponsors/logo_cultura.jpg',
-            description: 'Organismo que impulsa la formación, el conocimiento y las actividades culturales en nuestra ciudad.',
-            url: 'https://www.ceuta.es/ceuta/',
-            type: 'colaborador',
-            active: true
-          },
-          {
-            name: 'Zonelan',
-            image: '/images/sponsors/logo_zonelan.png',
-            description: 'Proveedor local de servicios de internet de alta velocidad por fibra óptica, televisión y telefonía móvil y fija',
-            url: 'https://zonelan.es/',
-            type: 'colaborador',
-            active: true
-          },
-          {
-            name: 'Astrategas Wargames',
-            image: '/images/sponsors/astrategas.jpg',
-            description: 'Portal especializado en análisis tácticos, reseñas y cobertura de torneos de Warhammer 40.000 a nivel mundial.',
-            url: 'https://astrategaswargames.com/',
-            type: 'medio',
-            active: true
+        if (existingSponsors.length === 0) {
+          console.log('No hay patrocinadores existentes, procediendo con la inicialización...');
+          
+          // Datos predeterminados en caso de que falle la importación
+          const defaultSponsorsData = [
+            {
+              id: 1,
+              name: "Ceuta Social",
+              logo: "/sponsors/ceuta-social.png",
+              url: "https://www.ceuta.es/social",
+              description: "Consejería de Servicios Sociales de la Ciudad Autónoma de Ceuta",
+              tier: "platinum",
+              active: true
+            },
+            {
+              id: 2,
+              name: "Universidad de Granada",
+              logo: "/sponsors/ugr.png",
+              url: "https://www.ugr.es/",
+              description: "Universidad de Granada - Campus de Ceuta",
+              tier: "gold",
+              active: true
+            },
+            {
+              id: 3,
+              name: "Fundación Progreso y Cultura",
+              logo: "/sponsors/fundacion-progreso.png",
+              url: "https://www.fundacionprogreso.es/",
+              description: "Fundación para el desarrollo cultural y educativo",
+              tier: "silver",
+              active: true
+            }
+          ];
+          
+          try {
+            // Intentar importar los datos iniciales del archivo
+            console.log('Intentando cargar datos iniciales desde archivo...');
+            const initialData = await import('../data/initialSponsorsData');
+            const fileSponsors = initialData.initialSponsorsData || [];
+            console.log(`Datos cargados correctamente: ${fileSponsors.length} patrocinadores`);
+            
+            // Usar los datos del archivo si están disponibles
+            if (fileSponsors.length > 0) {
+              console.log('Importando patrocinadores desde archivo...');
+              await this.importSponsors(fileSponsors.map(sponsor => ({
+                ...sponsor,
+                id: sponsor.id || 0 // Usar el ID existente o 0
+              })));
+            } else {
+              console.log('No hay patrocinadores en el archivo, usando datos predeterminados...');
+              await this.importSponsors(defaultSponsorsData.map(sponsor => ({
+                ...sponsor,
+                id: 0 // ID temporal que será reemplazado por la base de datos
+              })));
+            }
+          } catch (importError) {
+            console.error('Error al cargar archivo de patrocinadores:', importError);
+            console.log('Usando datos predeterminados fallback...');
+            
+            // Si falla la importación, usar los datos predeterminados
+            await this.importSponsors(defaultSponsorsData.map(sponsor => ({
+              ...sponsor,
+              id: 0 // ID temporal que será reemplazado por la base de datos
+            })));
           }
-        ];
-        
-        for (let i = 0; i < defaultSponsors.length; i++) {
-          await this.createSponsor(defaultSponsors[i]);
+          
+          console.log('Patrocinadores inicializados correctamente');
+        } else {
+          console.log(`Ya existen ${existingSponsors.length} patrocinadores, omitiendo inicialización`);
         }
-        
-        console.log('Patrocinadores inicializados correctamente');
+      } catch (apiError) {
+        console.error('Error al verificar patrocinadores existentes:', apiError);
+        throw new Error('No se pudo verificar si existen patrocinadores');
       }
     } catch (error) {
-      console.error('Error inicializando patrocinadores por defecto:', error);
-    }
-  }
-
-  // Método para exportar todos los patrocinadores
-  public async exportSponsors(): Promise<string> {
-    try {
-      const sponsors = await this.getAllSponsors();
-      return JSON.stringify(sponsors, null, 2);
-    } catch (error) {
-      console.error('Error exportando patrocinadores:', error);
-      throw error;
-    }
-  }
-
-  // Método para importar patrocinadores
-  public async importSponsors(jsonData: string): Promise<void> {
-    try {
-      const sponsors = JSON.parse(jsonData) as Sponsor[];
-      const db = await this.getDB();
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      
-      // Limpiar la tienda actual
-      await tx.store.clear();
-      
-      // Añadir los patrocinadores importados
-      for (const sponsor of sponsors) {
-        await tx.store.add(sponsor);
-      }
-      
-      await tx.done;
-      console.log(`Importados ${sponsors.length} patrocinadores`);
-    } catch (error) {
-      console.error('Error importando patrocinadores:', error);
+      console.error('Error inicializando patrocinadores predeterminados:', error);
       throw error;
     }
   }
 }
 
-export default new SponsorsService();
+// Exportamos una instancia del servicio para uso global
+const sponsorsService = new SponsorsService();
+export default sponsorsService;

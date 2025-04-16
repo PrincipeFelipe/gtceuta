@@ -38,6 +38,15 @@ export default defineConfig({
       },
     }),
   ],
+  resolve: {
+    alias: {
+      // Alias para módulos problemáticos
+      'sanitize-html': resolve(__dirname, './src/utils/sanitizerShim.ts'),
+    },
+  },
+  optimizeDeps: {
+    exclude: ['sanitize-html'], // Excluir de la optimización
+  },
   build: {
     outDir: 'dist',
     reportCompressedSize: true,
@@ -59,6 +68,10 @@ export default defineConfig({
         drop_console: true,
         drop_debugger: true,
       },
+    },
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true,
     },
   },
   // Asegura que la carpeta public se maneje correctamente

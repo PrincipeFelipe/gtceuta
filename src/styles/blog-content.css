@@ -44,7 +44,20 @@
 }
 
 .blog-content img {
-  @apply max-w-full rounded-lg my-6 mx-auto;
+  max-width: 100%;
+  height: auto;
+  margin: 1rem 0;
+  display: block;
+}
+
+.blog-content img.align-center {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.blog-content img.blog-content-image {
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .blog-content pre {
@@ -87,4 +100,15 @@
 
 .blog-content .text-justify {
   text-align: justify;
+}
+
+/* Estilo para el fondo de tablero de ajedrez para identificar imágenes transparentes */
+.bg-checkerboard {
+  background-image: linear-gradient(45deg, #333 25%, transparent 25%),
+                    linear-gradient(-45deg, #333 25%, transparent 25%),
+                    linear-gradient(45deg, transparent 75%, #333 75%),
+                    linear-gradient(-45deg, transparent 75%, #333 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  background-color: #555;
 }

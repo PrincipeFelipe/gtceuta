@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { normalizeImageUrl } from '../utils/imageUtils';
 
 interface OptimizedImageProps {
   src: string;
@@ -24,6 +25,8 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   
+  const normalizedSrc = normalizeImageUrl(src);
+
   const handleLoad = () => {
     setIsLoading(false);
   };
@@ -49,7 +52,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
         </div>
       )}
       <img
-        src={src}
+        src={normalizedSrc}
         alt={alt}
         className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'}`}
         width={width}

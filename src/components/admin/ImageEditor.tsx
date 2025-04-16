@@ -1,318 +1,356 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  X, 
-  Save, 
-  ZoomIn, 
-  ZoomOut, 
-  RotateCcw, 
-  ArrowLeftRight, 
-  ArrowUpDown,
-  Columns, 
-  SunDim 
-} from 'lucide-react';
+import { X, Save, RotateCw, ZoomIn, ZoomOut, Crop, RefreshCw } from 'lucide-react';
+import { API_URL } from '../../config/api';
 
 interface ImageEditorProps {
   src: string | null;
-  onSave: (editedImage: string) => void;
+  onSave: (editedImageUrl: string) => void;
   onCancel: () => void;
 }
 
 const ImageEditor: React.FC<ImageEditorProps> = ({ src, onSave, onCancel }) => {
-  const [editedSrc, setEditedSrc] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [width, setWidth] = useState(0);
-  const [height, setHeight] = useState(0);
-  const [brightness, setBrightness] = useState(100);
-  const [contrast, setContrast] = useState(100);
-  const [rotate, setRotate] = useState(0);
-  const [flipX, setFlipX] = useState(false);
-  const [flipY, setFlipY] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  
+  // Estados para edición de imagen
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [isCropping, setIsCropping] = useState(false);
+  const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  
+  // Canvas para manipulación de imagen
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Estado para tracking de la imagen original y la editada
+  const [originalImage, setOriginalImage] = useState<HTMLImageElement | null>(null);
+  const [editedImageSrc, setEditedImageSrc] = useState<string | null>(null);
 
-  // Cargar la imagen inicial
+  // Estado para debugging
+  const [debugInfo, setDebugInfo] = useState({
+    imageSize: '0 bytes',
+    dimensions: '0x0',
+    format: 'unknown'
+  });
+
   useEffect(() => {
-    if (!src) return;
+    // Verificar que src es válido
+    if (!src) {
+      setError("No se proporcionó una imagen válida");
+      return;
+    }
+
+    // Información para debugging
+    if (src.startsWith('data:')) {
+      // Es una imagen base64
+      const sizeInBytes = Math.round((src.length * 3) / 4);
+      const sizeInKB = Math.round(sizeInBytes / 1024);
+      setDebugInfo(prev => ({
+        ...prev,
+        imageSize: `~${sizeInKB} KB`,
+        format: src.split(';')[0].split('/')[1]
+      }));
+      
+      // Comprobar si el base64 es muy grande
+      if (sizeInKB > 5000) {
+        console.warn("La imagen es muy grande:", sizeInKB, "KB");
+      }
+    }
     
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      setWidth(img.width);
-      setHeight(img.height);
-      setIsLoading(false);
-      applyEdits(img);
-    };
-    img.onerror = (e) => {
-      console.error("Error loading image", e);
-      setIsLoading(false);
-    };
-    img.src = src;
+    // Reiniciar estados de edición cuando cambia la imagen
+    setZoomLevel(1);
+    setRotation(0);
+    setIsCropping(false);
+    setEditedImageSrc(null);
   }, [src]);
 
-  // Aplicar ediciones y actualizar la vista previa
-  const applyEdits = (imageObj?: HTMLImageElement) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  useEffect(() => {
+    if (originalImage && imageLoaded) {
+      applyImageEdits();
+    }
+  }, [zoomLevel, rotation, originalImage, imageLoaded]);
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    if (imageRef.current) {
+      // Guardar referencia a la imagen original
+      setOriginalImage(imageRef.current);
+      
+      setDebugInfo(prev => ({
+        ...prev,
+        dimensions: `${imageRef.current.naturalWidth}x${imageRef.current.naturalHeight}`
+      }));
+      
+      // Inicializar el crop area cuando la imagen se carga
+      setCropArea({
+        x: 0,
+        y: 0,
+        width: imageRef.current.naturalWidth,
+        height: imageRef.current.naturalHeight
+      });
+    }
+  };
+  
+  // Función para aplicar ediciones a la imagen
+  const applyImageEdits = () => {
+    if (!originalImage || !canvasRef.current) return;
     
+    const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    const img = imageObj || new Image();
-    if (!imageObj) {
-      img.crossOrigin = "anonymous";
-      img.src = src || '';
-    }
+    // Ajustar el tamaño del canvas según la imagen y rotación
+    const imgWidth = originalImage.naturalWidth;
+    const imgHeight = originalImage.naturalHeight;
     
-    img.onload = () => {
-      // Configurar el tamaño del canvas
-      canvas.width = width;
-      canvas.height = height;
+    // Determinar si necesitamos intercambiar ancho y alto debido a la rotación
+    const isRotated = rotation === 90 || rotation === 270;
+    canvas.width = isRotated ? imgHeight : imgWidth;
+    canvas.height = isRotated ? imgWidth : imgHeight;
+    
+    // Limpiar el canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Guardar el estado del canvas
+    ctx.save();
+    
+    // Mover el origen al centro del canvas para la rotación
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    
+    // Rotar el canvas
+    ctx.rotate((rotation * Math.PI) / 180);
+    
+    // Aplicar zoom
+    ctx.scale(zoomLevel, zoomLevel);
+    
+    // Dibujar la imagen centrada
+    ctx.drawImage(
+      originalImage,
+      -imgWidth / 2,
+      -imgHeight / 2,
+      imgWidth,
+      imgHeight
+    );
+    
+    // Restaurar el estado del canvas
+    ctx.restore();
+    
+    // Convertir el canvas a imagen
+    try {
+      const newImageSrc = canvas.toDataURL('image/jpeg', 0.9);
+      setEditedImageSrc(newImageSrc);
+    } catch (e) {
+      console.error('Error al convertir canvas a imagen:', e);
+      setError('Error al procesar la imagen');
+    }
+  };
+  
+  // Funciones para controles de edición
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 0.1, 3)); // Max zoom: 3x
+  };
+  
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 0.1, 0.5)); // Min zoom: 0.5x
+  };
+  
+  const handleRotate = () => {
+    setRotation(prev => (prev + 90) % 360);
+  };
+  
+  const toggleCrop = () => {
+    setIsCropping(!isCropping);
+  };
+  
+  const handleReset = () => {
+    setZoomLevel(1);
+    setRotation(0);
+    setIsCropping(false);
+    setEditedImageSrc(null);
+  };
+
+  // Actualiza handleSaveImage para manejar correctamente las URLs
+  const handleSaveImage = async () => {
+    const imageToSave = editedImageSrc || src;
+    if (!imageToSave) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`${API_URL}/upload/image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          image: imageToSave,
+          type: 'blog-content'
+        })
+      });
       
-      // Limpiar el canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Guardar el estado
-      ctx.save();
-      
-      // Aplicar transformaciones
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      
-      // Trasladar al centro para la rotación
-      ctx.translate(centerX, centerY);
-      
-      // Aplicar rotación
-      ctx.rotate((rotate * Math.PI) / 180);
-      
-      // Aplicar volteo
-      ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-      
-      // Dibujar imagen
-      ctx.drawImage(
-        img,
-        -canvas.width / 2,
-        -canvas.height / 2,
-        canvas.width,
-        canvas.height
-      );
-      
-      // Restaurar el estado
-      ctx.restore();
-      
-      // Aplicar filtros
-      if (brightness !== 100 || contrast !== 100) {
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        
-        for (let i = 0; i < data.length; i += 4) {
-          // Ajustar brillo y contraste
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          
-          // Ajuste de brillo: multiplicar por un factor (brightness / 100)
-          // Ajuste de contraste: aplicar fórmula f(x) = (x - 128) * (contrast / 100) + 128
-          data[i] = Math.min(255, Math.max(0, ((r - 128) * (contrast / 100)) + 128 * (brightness / 100)));
-          data[i + 1] = Math.min(255, Math.max(0, ((g - 128) * (contrast / 100)) + 128 * (brightness / 100)));
-          data[i + 2] = Math.min(255, Math.max(0, ((b - 128) * (contrast / 100)) + 128 * (brightness / 100)));
-        }
-        
-        ctx.putImageData(imageData, 0, 0);
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${await response.text()}`);
       }
       
-      // Actualizar la imagen editada
-      setEditedSrc(canvas.toDataURL('image/jpeg'));
-    };
-    
-    // Solo necesitamos cargar la imagen si no se proporcionó
-    if (!imageObj) {
-      img.onerror = () => console.error("Error applying edits");
-    }
-  };
-
-  // Actualizar la vista previa cuando cambien las ediciones
-  useEffect(() => {
-    if (!isLoading) {
-      applyEdits();
-    }
-  }, [width, height, brightness, contrast, rotate, flipX, flipY, isLoading]);
-
-  // Redimensionar manteniendo la proporción
-  const handleResize = (newWidth: number) => {
-    const aspectRatio = width / height;
-    setWidth(newWidth);
-    setHeight(Math.round(newWidth / aspectRatio));
-  };
-
-  // Guardar la imagen editada
-  const handleSave = () => {
-    if (editedSrc) {
-      onSave(editedSrc);
+      const data = await response.json();
+      
+      // IMPORTANTE: Construir la URL correcta para acceder desde el frontend
+      // Usar la URL del servidor API, no la URL del frontend
+      const imageUrl = `${API_URL}${data.url}`;
+      console.log("URL de imagen guardada:", imageUrl);
+      
+      onSave(imageUrl);
+    } catch (err) {
+      console.error('Error al guardar la imagen:', err);
+      setError(err instanceof Error ? err.message : 'Error desconocido al guardar la imagen');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="px-4 py-3 border-b border-gray-800 flex justify-between items-center">
-          <h3 className="text-lg font-medium text-white">Editor de imágenes</h3>
-          <button 
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
+        <div className="flex justify-between items-center border-b border-gray-700 p-4">
+          <h2 className="text-xl font-bold text-white">Editor de Imagen</h2>
+          <button
             onClick={onCancel}
-            className="text-gray-500 hover:text-white"
+            className="text-gray-400 hover:text-white"
           >
-            <X size={20} />
+            <X size={24} />
           </button>
         </div>
         
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-          {/* Vista previa */}
-          <div className="flex-1 p-4 flex items-center justify-center overflow-auto bg-gray-800">
-            {isLoading ? (
-              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-red-600"></div>
-            ) : (
-              <div className="relative">
-                <canvas 
-                  ref={canvasRef} 
-                  className="max-w-full max-h-[60vh] mx-auto border border-gray-700 shadow-lg"
-                />
-                <img src={editedSrc || ''} className="hidden" alt="edited preview" /> {/* Para ver la vista previa final */}
+        {error && (
+          <div className="bg-red-900/50 border border-red-500 text-white p-3 m-4 rounded">
+            <p>{error}</p>
+          </div>
+        )}
+        
+        {/* Contenedor de la imagen con información de depuración */}
+        <div className="flex-1 overflow-auto p-4 relative">
+          {!imageLoaded && src && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+            </div>
+          )}
+          
+          {/* Mostrar información de depuración */}
+          <div className="bg-gray-900 p-2 mb-2 rounded text-xs text-gray-400 flex justify-between">
+            <span>Formato: {debugInfo.format}</span>
+            <span>Tamaño: {debugInfo.imageSize}</span>
+            <span>Dimensiones: {debugInfo.dimensions}</span>
+            {zoomLevel !== 1 && <span>Zoom: {(zoomLevel * 100).toFixed(0)}%</span>}
+            {rotation !== 0 && <span>Rotación: {rotation}°</span>}
+          </div>
+
+          {/* Canvas oculto para manipulación de imagen */}
+          <canvas 
+            ref={canvasRef}
+            className="hidden"
+          />
+
+          {/* Contenedor de la imagen con borde para visualizar mejor */}
+          <div className="border border-gray-700 rounded overflow-hidden flex justify-center bg-gray-900 min-h-[300px] relative">
+            {/* Imagen original (oculta si hay una editada) */}
+            {src && !editedImageSrc && (
+              <img
+                ref={imageRef}
+                src={src}
+                alt="Imagen para editar"
+                className="max-w-full max-h-[50vh] object-contain"
+                onLoad={handleImageLoad}
+                onError={(e) => {
+                  console.error("Error al cargar la imagen", e);
+                  setError("No se pudo cargar la imagen. Formato no soportado o imagen corrupta.");
+                }}
+              />
+            )}
+            
+            {/* Imagen editada */}
+            {editedImageSrc && (
+              <img
+                src={editedImageSrc}
+                alt="Imagen editada"
+                className="max-w-full max-h-[50vh] object-contain"
+              />
+            )}
+            
+            {/* Overlay para recorte (implementación simplificada) */}
+            {isCropping && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                <div className="text-white p-3 bg-red-800 rounded">
+                  Funcionalidad de recorte en desarrollo...
+                </div>
               </div>
             )}
           </div>
-          
-          {/* Controles */}
-          <div className="w-full md:w-64 border-t md:border-t-0 md:border-l border-gray-800 p-4 space-y-6">
-            {/* Redimensionar */}
-            <div className="space-y-2">
-              <label className="flex items-center text-sm text-gray-300 gap-1">
-                <Columns size={16} />
-                <span>Tamaño</span>
-              </label>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="number"
-                  value={width}
-                  onChange={(e) => handleResize(Number(e.target.value))}
-                  className="p-1 bg-gray-800 border border-gray-700 rounded text-white w-20"
-                />
-                <span className="text-gray-400">×</span>
-                <input
-                  type="number"
-                  value={height}
-                  readOnly
-                  className="p-1 bg-gray-800 border border-gray-700 rounded text-gray-400 w-20"
-                />
-                <span className="text-gray-400 text-xs ml-1">px</span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleResize(Math.round(width * 0.9))}
-                  className="flex items-center justify-center bg-gray-800 hover:bg-gray-700 rounded p-2 text-sm text-gray-300"
-                  title="Reducir tamaño"
-                >
-                  <ZoomOut size={16} />
-                </button>
-                <button
-                  onClick={() => handleResize(Math.round(width * 1.1))}
-                  className="flex items-center justify-center bg-gray-800 hover:bg-gray-700 rounded p-2 text-sm text-gray-300"
-                  title="Aumentar tamaño"
-                >
-                  <ZoomIn size={16} />
-                </button>
-                <div className="flex-1"></div>
-                <button
-                  onClick={() => {
-                    const img = new Image();
-                    img.crossOrigin = "anonymous";
-                    img.onload = () => {
-                      setWidth(img.width);
-                      setHeight(img.height);
-                      setBrightness(100);
-                      setContrast(100);
-                      setRotate(0);
-                      setFlipX(false);
-                      setFlipY(false);
-                      applyEdits(img);
-                    };
-                    img.src = src || '';
-                  }}
-                  className="flex items-center justify-center bg-gray-800 hover:bg-gray-700 rounded p-2 text-sm text-gray-300"
-                  title="Restablecer"
-                >
-                  <RotateCcw size={16} />
-                </button>
-              </div>
-            </div>
-            
-            {/* Control de brillo */}
-            <div className="space-y-2">
-              <label className="flex items-center text-sm text-gray-300 gap-1">
-                <SunDim size={16} />
-                <span>Brillo: {brightness}%</span>
-              </label>
-              <input
-                type="range"
-                min="50"
-                max="150"
-                value={brightness}
-                onChange={(e) => setBrightness(Number(e.target.value))}
-                className="w-full accent-red-600 h-1"
-              />
-            </div>
-            
-            {/* Control de contraste */}
-            <div className="space-y-2">
-              <label className="text-sm text-gray-300">Contraste: {contrast}%</label>
-              <input
-                type="range"
-                min="50"
-                max="150"
-                value={contrast}
-                onChange={(e) => setContrast(Number(e.target.value))}
-                className="w-full accent-red-600 h-1"
-              />
-            </div>
-            
-            {/* Rotación y volteo */}
-            <div className="space-y-2">
-              <label className="text-sm text-gray-300">Transformaciones</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setRotate((prev) => (prev + 90) % 360)}
-                  className="flex items-center justify-center bg-gray-800 hover:bg-gray-700 rounded p-2 text-sm text-gray-300"
-                >
-                  <RotateCcw size={16} /> Rotar 90°
-                </button>
-                <button
-                  onClick={() => setFlipX(!flipX)}
-                  className="flex items-center justify-center bg-gray-800 hover:bg-gray-700 rounded p-2 text-sm text-gray-300"
-                >
-                  <ArrowLeftRight size={16} /> Voltear H
-                </button>
-                <button
-                  onClick={() => setFlipY(!flipY)}
-                  className="flex items-center justify-center bg-gray-800 hover:bg-gray-700 rounded p-2 text-sm text-gray-300"
-                >
-                  <ArrowUpDown size={16} /> Voltear V
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
         
-        <div className="px-4 py-3 border-t border-gray-800 flex justify-end gap-2">
-          <button 
-            onClick={onCancel}
-            className="px-4 py-2 rounded bg-gray-800 hover:bg-gray-700 text-white"
-          >
-            Cancelar
-          </button>
-          <button 
-            onClick={handleSave}
-            className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white flex items-center gap-1"
-            disabled={isLoading || !editedSrc}
-          >
-            <Save size={16} /> Guardar
-          </button>
+        {/* Controles de edición */}
+        <div className="border-t border-gray-700 p-4">
+          <div className="flex justify-between">
+            <div className="flex space-x-2">
+              <button
+                onClick={handleZoomIn}
+                className="bg-gray-700 text-white p-2 rounded hover:bg-gray-600"
+                title="Zoom In"
+              >
+                <ZoomIn size={20} />
+              </button>
+              <button
+                onClick={handleZoomOut}
+                className="bg-gray-700 text-white p-2 rounded hover:bg-gray-600"
+                title="Zoom Out"
+              >
+                <ZoomOut size={20} />
+              </button>
+              <button
+                onClick={handleRotate}
+                className="bg-gray-700 text-white p-2 rounded hover:bg-gray-600"
+                title="Rotate"
+              >
+                <RotateCw size={20} />
+              </button>
+              <button
+                onClick={toggleCrop}
+                className={`${isCropping ? 'bg-red-600' : 'bg-gray-700'} text-white p-2 rounded hover:bg-gray-600`}
+                title="Crop"
+              >
+                <Crop size={20} />
+              </button>
+              <button
+                onClick={handleReset}
+                className="bg-gray-700 text-white p-2 rounded hover:bg-gray-600"
+                title="Reset"
+              >
+                <RefreshCw size={20} />
+              </button>
+            </div>
+            
+            <div className="flex space-x-2">
+              <button
+                onClick={onCancel}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveImage}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center space-x-2"
+                disabled={loading || (!src && !editedImageSrc)}
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                ) : (
+                  <Save size={18} />
+                )}
+                <span>Guardar</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
