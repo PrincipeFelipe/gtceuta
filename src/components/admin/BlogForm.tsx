@@ -22,6 +22,23 @@ const categories = [
   { id: 'estrategia', name: 'Estrategia' }
 ];
 
+// Añade esta función auxiliar para formatear la fecha (puedes colocarla antes del componente BlogForm)
+const formatDateForInput = (dateString: string | Date): string => {
+  if (!dateString) return '';
+  
+  const date = new Date(dateString);
+  
+  // Verificar que la fecha es válida
+  if (isNaN(date.getTime())) return '';
+  
+  // Formato YYYY-MM-DD para input type="date"
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+};
+
 const BlogForm: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -161,7 +178,7 @@ const BlogForm: React.FC = () => {
               excerpt: post.excerpt || '',
               content: processedContent, // Usar el contenido procesado
               image: post.image || '/images/blog/default-post.jpg',
-              date: post.date || new Date().toISOString().split('T')[0],
+              date: formatDateForInput(post.date || new Date().toISOString().split('T')[0]),
               category: post.category || 'guias',
               published: post.published || false
             });
@@ -246,15 +263,21 @@ const BlogForm: React.FC = () => {
     setError(null);
 
     try {
+      const postToSubmit = {
+        ...formData,
+        // Asegurarse de que la fecha esté en formato ISO para la base de datos
+        date: formData.date ? new Date(formData.date).toISOString() : new Date().toISOString()
+      };
+
       if (id) {
         // Modo edición
         await blogService.updatePost({
-          ...formData,
+          ...postToSubmit,
           id: Number(id)
         } as BlogPost);
       } else {
         // Modo creación
-        await blogService.addPost(formData);
+        await blogService.addPost(postToSubmit);
       }
       navigate('/admin/blog');
     } catch (err) {
@@ -377,8 +400,9 @@ const BlogForm: React.FC = () => {
             className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 transition-colors"
             aria-label="Eliminar imagen"
           >
+            {/* SVG corregido */}
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 011.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 0 1 1.414 0L10 8.586l4.293-4.293a1 1 0 1 1 1.414 1.414L11.414 10l4.293 4.293a1 1 0 0 1-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 0 1-1.414-1.414L8.586 10 4.293 5.707a1 1 0 0 1 0-1.414z" clipRule="evenodd" />
             </svg>
           </button>
         </div>
