@@ -1,11 +1,17 @@
-import React from 'react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
+import React, { ReactNode } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Home, FileText, Settings, Users, LogOut, Globe, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const AdminLayout: React.FC = () => {
+interface AdminLayoutProps {
+  children: ReactNode;
+}
+
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { logout } = useAuth();
+
+  console.log("AdminLayout - rendering with children", children ? "present" : "missing");
 
   const handleLogout = async () => {
     if (window.confirm('¿Estás seguro que quieres cerrar sesión?')) {
@@ -103,9 +109,8 @@ const AdminLayout: React.FC = () => {
       </div>
 
       {/* Main content area */}
-      <div className="flex-1 overflow-auto">
-        {/* Contenido principal de cada página */}
-        <Outlet />
+      <div className="flex-1 overflow-auto p-6">
+        {children}
       </div>
     </div>
   );

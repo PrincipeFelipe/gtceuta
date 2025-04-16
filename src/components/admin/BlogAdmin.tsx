@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Search, Plus, Eye, Edit2, Trash2, Calendar, Tag } from 'lucide-react';
+import { Search, Plus, Eye, Edit2, Trash2, Calendar, Tag, Download, Upload } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 import BlogService from '../../services/BlogService';
-import { Post } from '../../types/BlogTypes';
+import { BlogPost } from '../../services/BlogService';
 import { Helmet } from 'react-helmet-async';
 
 const BlogAdmin: React.FC = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [showImportExport, setShowImportExport] = useState(false);
   const navigate = useNavigate();
 
   // Cargar todos los posts al inicializar
@@ -41,9 +42,115 @@ const BlogAdmin: React.FC = () => {
       try {
         await BlogService.deletePost(id);
         setPosts(posts.filter(post => post.id !== id));
+        toast.success('Post eliminado correctamente');
       } catch (error) {
         console.error('Error al eliminar el post:', error);
+        toast.error('Error al eliminar el post');
       }
+    }
+  };
+
+  // Manejar la exportación de datos
+  const handleExport = async () => {
+    try {
+      // Obtener todos los posts
+      const allPosts = await BlogService.getAllPosts();
+      
+      // Convertir a JSON y crear blob
+      const jsonData = JSON.stringify(allPosts, null, 2);
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      
+      // Crear URL para descargar
+      const url = URL.createObjectURL(blob);
+      
+      // Crear elemento anchor y simular clic
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gt-ceuta-blog-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Limpieza
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      toast.success(`${allPosts.length} posts exportados correctamente`);
+    } catch (error) {
+      console.error('Error al exportar posts:', error);
+      toast.error('Error al exportar los posts');
+    }
+  };
+
+  // Manejar la importación de datos
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      // Leer el archivo
+      const reader = new FileReader();
+      const fileContent = await new Promise<string>((resolve, reject) => {
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = (e) => reject(e);
+        reader.readAsText(file);
+      });
+      
+      // Parsear el JSON
+      const postsToImport = JSON.parse(fileContent) as BlogPost[];
+      
+      // Validar la estructura básica
+      if (!Array.isArray(postsToImport) || !postsToImport.every(post => 
+        typeof post.title === 'string' && 
+        typeof post.content === 'string' &&
+        typeof post.slug === 'string'
+      )) {
+        toast.error('Formato de archivo inválido');
+        return;
+      }
+      
+      // Confirmar con el usuario
+      if (!window.confirm(`¿Estás seguro de importar ${postsToImport.length} posts? Esta acción podría sobreescribir datos existentes.`)) {
+        toast.info('Importación cancelada por el usuario');
+        return;
+      }
+      
+      // Importar cada post
+      let imported = 0;
+      let errors = 0;
+      
+      for (const post of postsToImport) {
+        try {
+          // Si el post tiene ID, intentar actualizar
+          if (post.id) {
+            await BlogService.updatePost(post);
+          } else {
+            // Si no tiene ID, crear nuevo
+            const { id, ...postData } = post as any;
+            await BlogService.addPost(postData);
+          }
+          imported++;
+        } catch (err) {
+          console.error(`Error al importar post "${post.title}":`, err);
+          errors++;
+        }
+      }
+      
+      // Recargar posts después de la importación
+      const updatedPosts = await BlogService.getAllPosts();
+      setPosts(updatedPosts);
+      
+      if (errors > 0) {
+        toast.warning(`Importación completada: ${imported} posts importados, ${errors} errores`);
+      } else {
+        toast.success(`${imported} posts importados correctamente`);
+      }
+    } catch (error) {
+      console.error('Error al importar posts:', error);
+      toast.error('Error al importar los posts. Verifica el formato del archivo.');
+    } finally {
+      e.target.value = ''; // Resetear input para permitir seleccionar el mismo archivo
     }
   };
 
@@ -65,13 +172,33 @@ const BlogAdmin: React.FC = () => {
         
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-white">Administrar Blog</h1>
-          <button
-            onClick={() => navigate('/admin/blog/new')}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition"
-          >
-            <Plus size={18} />
-            <span>Nuevo Post</span>
-          </button>
+          <div className="flex space-x-2 mt-4 sm:mt-0">
+            <button
+              onClick={() => navigate('/admin/blog/new')}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition"
+            >
+              <Plus size={18} />
+              <span>Nuevo Post</span>
+            </button>
+            <button 
+              onClick={handleExport}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
+              title="Exportar todos los posts"
+            >
+              <Download size={18} />
+              <span className="hidden sm:inline">Exportar</span>
+            </button>
+            <label className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition cursor-pointer">
+              <Upload size={18} />
+              <span className="hidden sm:inline">Importar</span>
+              <input 
+                type="file" 
+                accept=".json"
+                onChange={handleImport}
+                className="hidden" 
+              />
+            </label>
+          </div>
         </div>
 
         {/* Buscador */}
