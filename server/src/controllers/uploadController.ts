@@ -140,3 +140,98 @@ export const uploadImage = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error al procesar la imagen' });
   }
 };
+
+// Función para eliminar imágenes
+export const deleteImage = async (req: Request, res: Response) => {
+  try {
+    console.log('Solicitud recibida para eliminar imagen:', req.body);
+    const { imageUrl } = req.body;
+    
+    if (!imageUrl) {
+      return res.status(400).json({ message: 'URL de imagen no proporcionada' });
+    }
+    
+    // Extraer el nombre del archivo de la URL
+    let fileName: string;
+    try {
+      // Intentar extraer el nombre del archivo de una URL completa
+      const url = new URL(imageUrl);
+      const pathParts = url.pathname.split('/');
+      fileName = pathParts[pathParts.length - 1];
+    } catch (error) {
+      // Si no es una URL válida, intenta extraer el nombre del archivo de una ruta
+      const pathParts = imageUrl.split('/');
+      fileName = pathParts[pathParts.length - 1];
+    }
+    
+    console.log('Intentando eliminar archivo:', fileName);
+    
+    // Determinar la carpeta donde se encuentra la imagen
+    let folderPath = '';
+    
+    // Buscar en qué carpeta está ubicada la imagen
+    if (imageUrl.includes('/blog') && !imageUrl.includes('/content/')) {
+      folderPath = path.join(__dirname, '../../uploads/images/blog');
+    } else if (imageUrl.includes('/content/')) {
+      folderPath = path.join(__dirname, '../../uploads/images/blog/content');
+    } else if (imageUrl.includes('/sponsors/')) {
+      folderPath = path.join(__dirname, '../../uploads/images/sponsors');
+    } else {
+      // Si no se puede determinar la carpeta específica, buscar en todas
+      console.log('No se pudo determinar la carpeta específica, buscando en todas');
+      const basePath = path.join(__dirname, '../../uploads/images');
+      
+      // Buscar en todas las carpetas posibles
+      const checkPaths = [
+        path.join(basePath, 'blog'),
+        path.join(basePath, 'blog/content'),
+        path.join(basePath, 'sponsors')
+      ];
+      
+      // Encontrar el archivo en alguna de las carpetas
+      for (const checkPath of checkPaths) {
+        if (!fs.existsSync(checkPath)) continue;
+        
+        const filePath = path.join(checkPath, fileName);
+        if (fs.existsSync(filePath)) {
+          folderPath = checkPath;
+          break;
+        }
+      }
+      
+      if (!folderPath) {
+        return res.status(404).json({ message: 'Archivo no encontrado en ninguna carpeta' });
+      }
+    }
+    
+    // Asegurar que la carpeta existe
+    if (!fs.existsSync(folderPath)) {
+      return res.status(404).json({ message: `Carpeta no encontrada: ${folderPath}` });
+    }
+    
+    const filePath = path.join(folderPath, fileName);
+    console.log('Ruta completa del archivo a eliminar:', filePath);
+    
+    // Verificar que el archivo existe antes de intentar eliminarlo
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: `Archivo no encontrado: ${filePath}` });
+    }
+    
+    // Eliminar el archivo
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        console.error('Error al eliminar archivo:', err);
+        return res.status(500).json({ message: 'Error al eliminar la imagen', error: err.message });
+      }
+      
+      console.log('Imagen eliminada correctamente:', fileName);
+      res.status(200).json({ message: 'Imagen eliminada correctamente' });
+    });
+  } catch (error) {
+    console.error('Error al procesar la solicitud:', error);
+    res.status(500).json({ message: 'Error al eliminar la imagen', error: String(error) });
+  }
+};
+
+// La función saveBase64Image es privada para este archivo
+// Las demás funciones ya han sido exportadas individualmente

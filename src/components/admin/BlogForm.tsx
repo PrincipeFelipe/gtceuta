@@ -77,6 +77,9 @@ const BlogForm: React.FC = () => {
   // Añadir una referencia al editor Tiptap
   const tiptapRef = useRef<TiptapEditorRef>(null);
 
+  // Añadir este estado para rastrear imágenes
+  const [trackingImages, setTrackingImages] = useState<Set<string>>(new Set());
+
   // Función para normalizar HTML antes de pasarlo al editor
   const preprocessHtmlForTiptap = (html: string): string => {
     if (!html) return '';
@@ -235,6 +238,45 @@ const BlogForm: React.FC = () => {
     return modified ? tempDiv.innerHTML : html;
   };
 
+  // En la función de normalización de contenido, rastrear imágenes actuales
+  const normalizeAndTrackImages = (html: string): string => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // Encontrar todas las imágenes y guardar sus URLs
+    const images = tempDiv.querySelectorAll('img');
+    const currentImages = new Set<string>();
+    
+    images.forEach(img => {
+      const src = img.getAttribute('src') || '';
+      if (src && src.includes('/uploads/')) {
+        currentImages.add(src);
+      }
+      
+      // Normalizar la URL si es necesario
+      if (src.includes('\\')) {
+        const normalizedSrc = src.replace(/\\/g, '/');
+        img.setAttribute('src', normalizedSrc);
+      }
+    });
+    
+    // Detectar imágenes eliminadas (las que estaban antes pero ya no están)
+    if (trackingImages.size > 0) {
+      trackingImages.forEach(oldImageUrl => {
+        if (!currentImages.has(oldImageUrl) && oldImageUrl.includes('/uploads/')) {
+          // La imagen ya no está en el contenido, eliminarla del servidor
+          console.log('Imagen eliminada del contenido:', oldImageUrl);
+          deleteImageFromServer(oldImageUrl);
+        }
+      });
+    }
+    
+    // Actualizar el tracking con las imágenes actuales
+    setTrackingImages(currentImages);
+    
+    return tempDiv.innerHTML;
+  };
+
   // Manejar cambios en los campos del formulario
   const handleChange = (field: keyof Omit<BlogPost, 'id'>, value: any) => {
     setFormData(prev => {
@@ -242,7 +284,7 @@ const BlogForm: React.FC = () => {
       
       // Si el campo es 'content', normalizar URLs de imágenes
       if (field === 'content') {
-        updatedValue = normalizeContentImageUrls(value);
+        updatedValue = normalizeAndTrackImages(value);
       }
       
       const updated = { ...prev, [field]: updatedValue };
@@ -396,14 +438,11 @@ const BlogForm: React.FC = () => {
           />
           <button 
             type="button"
-            onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+            onClick={handleRemoveFeaturedImage}
             className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 transition-colors"
             aria-label="Eliminar imagen"
           >
-            {/* SVG corregido */}
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 0 1 1.414 0L10 8.586l4.293-4.293a1 1 0 1 1 1.414 1.414L11.414 10l4.293 4.293a1 1 0 0 1-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 0 1-1.414-1.414L8.586 10 4.293 5.707a1 1 0 0 1 0-1.414z" clipRule="evenodd" />
-            </svg>
+            <X size={16} />
           </button>
         </div>
       );
@@ -468,6 +507,48 @@ const BlogForm: React.FC = () => {
         )}
       </div>
     );
+  };
+
+  // Mejorar la función para eliminar imágenes del servidor
+const deleteImageFromServer = async (imageUrl: string) => {
+  console.log("Intentando eliminar imagen:", imageUrl);
+  
+  try {
+    const response = await fetch(`${API_URL}/delete-image`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ imageUrl })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error('Error al eliminar la imagen:', data.message || response.statusText);
+      return false;
+    } else {
+      console.log('Imagen eliminada correctamente:', data.message);
+      return true;
+    }
+  } catch (error) {
+    console.error('Error en la petición para eliminar imagen:', error);
+    return false;
+  }
+};
+
+  // Modifica la función para eliminar la imagen destacada
+  const handleRemoveFeaturedImage = () => {
+    // Guardar la URL actual antes de quitarla
+    const currentImageUrl = formData.image;
+    
+    // Actualizar el estado del formulario
+    setFormData(prev => ({ ...prev, image: '' }));
+    
+    // Si la imagen no es la predeterminada, eliminarla del servidor
+    if (currentImageUrl && !currentImageUrl.includes('default-post.jpg')) {
+      deleteImageFromServer(currentImageUrl);
+    }
   };
 
   return (
