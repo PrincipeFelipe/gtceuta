@@ -49,89 +49,86 @@
     <!-- Canonical URL para evitar contenido duplicado -->
     <link rel="canonical" href="https://gtceuta.com" />
 
-    <!-- Asegurar que hay una meta CSP que permite localhost --> Asegurar que hay una meta CSP que permite localhost -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' http://localhost:4000 data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval';">tent-Security-Policy" content="default-src 'self'; img-src 'self' http://localhost:4000 data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval';">
+    <!-- CSP que permite localhost para desarrollo -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http://localhost:4000; img-src 'self' http://localhost:4000 data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' 'unsafe-eval';">
   </head>
-  <body>ody>
+  <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>n.tsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Datos estructurados JSON-LD para eventos --> eventos -->
-    <script type="application/ld+json">tion/ld+json">
+    <!-- Datos estructurados JSON-LD para eventos -->
+    <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "Event",
-        "name": "I GT de Ceuta - Torneo oficial de Warhammer 40.000",o oficial de Warhammer 40.000",
-        "description": "Primer Gran Torneo oficial de Warhammer 40.000 en Ceuta. Formato competitivo, 36 jugadores, grandes premios y ambiente familiar. Este torneo seguirá el reglamento oficial de Games Workshop para eventos competitivos de Warhammer 40k.",. Formato competitivo, 36 jugadores, grandes premios y ambiente familiar. Este torneo seguirá el reglamento oficial de Games Workshop para eventos competitivos de Warhammer 40k.",
+        "name": "I GT de Ceuta - Torneo oficial de Warhammer 40.000",
+        "description": "Primer Gran Torneo oficial de Warhammer 40.000 en Ceuta. Formato competitivo, 36 jugadores, grandes premios y ambiente familiar. Este torneo seguirá el reglamento oficial de Games Workshop para eventos competitivos de Warhammer 40k.",
         "startDate": "2025-06-28T09:00",
-        "endDate": "2025-06-29T20:00",025-06-29T20:00",
-        "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",e": "https://schema.org/OfflineEventAttendanceMode",
+        "endDate": "2025-06-29T20:00",
+        "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
         "eventStatus": "https://schema.org/EventScheduled",
         "location": {
           "@type": "Place",
-          "name": "Centro Cultural 'La Estáción de Ferrocarril'",Estáción de Ferrocarril'",
+          "name": "Centro Cultural 'La Estación de Ferrocarril'",
           "address": {
-            "@type": "PostalAddress",s",
-            "addressLocality": "Ceuta", "addressLocality": "Ceuta",
-            "addressRegion": "Ceuta",  "addressRegion": "Ceuta",
-            "addressCountry": "ES"ssCountry": "ES"
+            "@type": "PostalAddress",
+            "addressLocality": "Ceuta",
+            "addressRegion": "Ceuta",
+            "addressCountry": "ES"
           }
         },
         "image": [
-          "https://gtceuta.com/images/CARTEL I GT CEUTA.jpg"com/images/CARTEL I GT CEUTA.jpg"
+          "https://gtceuta.com/images/CARTEL I GT CEUTA.jpg"
         ],
         "offers": {
           "@type": "Offer",
           "url": "https://gtceuta.com/inscripcion",
           "price": "105",
-          "priceCurrency": "EUR","priceCurrency": "EUR",
-          "availability": "https://schema.org/InStock",y": "https://schema.org/InStock",
-          "validFrom": "2024-04-01T00:00"T00:00"
+          "priceCurrency": "EUR",
+          "availability": "https://schema.org/InStock",
+          "validFrom": "2024-04-01T00:00"
         },
         "organizer": {
-          "@type": "Organization","@type": "Organization",
+          "@type": "Organization",
           "name": "Kubos Ludika y Megaverse",
-          "url": "https://gtceuta.com"   "url": "https://gtceuta.com"
+          "url": "https://gtceuta.com"
         },
-        "keywords": "Warhammer 40k, torneo oficial, GT Ceuta, Warhammer 40000, Gran Torneo, torneo competitivo, Warhammer Ceuta"        "keywords": "Warhammer 40k, torneo oficial, GT Ceuta, Warhammer 40000, Gran Torneo, torneo competitivo, Warhammer Ceuta"
+        "keywords": "Warhammer 40k, torneo oficial, GT Ceuta, Warhammer 40000, Gran Torneo, torneo competitivo, Warhammer Ceuta"
       }
     </script>
 
-    <!-- Añadir marcado FAQPage para mejorar SEO -->rar SEO -->
-    <script type="application/ld+json">on/ld+json">
+    <!-- Añadir marcado FAQPage para mejorar SEO -->
+    <script type="application/ld+json">
       {
-        "@context": "https://schema.org",ontext": "https://schema.org",
+        "@context": "https://schema.org",
         "@type": "FAQPage",
         "mainEntity": [
           {
             "@type": "Question",
             "name": "¿Cómo me inscribo en el I GT de Ceuta?",
-            "acceptedAnswer": {acceptedAnswer": {
-              "@type": "Answer",  "@type": "Answer",
-              "text": "Puedes inscribirte directamente desde esta web haciendo clic en el botón 'Inscríbete' que encontrarás en varias secciones. También puedes ponerte en contacto con los organizadores a través de nuestras redes sociales o enviando un correo electrónico a info@gtceuta.com."   "text": "Puedes inscribirte directamente desde esta web haciendo clic en el botón 'Inscríbete' que encontrarás en varias secciones. También puedes ponerte en contacto con los organizadores a través de nuestras redes sociales o enviando un correo electrónico a info@gtceuta.com."
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Puedes inscribirte directamente desde esta web haciendo clic en el botón 'Inscríbete' que encontrarás en varias secciones. También puedes ponerte en contacto con los organizadores a través de nuestras redes sociales o enviando un correo electrónico a info@gtceuta.com."
             }
           },
           {
             "@type": "Question",
             "name": "¿Cuánto cuesta la inscripción al torneo?",
-            "acceptedAnswer": {acceptedAnswer": {
-              "@type": "Answer",  "@type": "Answer",
-              "text": "El precio de la inscripción al I GT de Ceuta es de 105€, lo que incluye participación en el torneo, comidas durante los dos días del evento, recuerdo del torneo y opción a premios."   "text": "El precio de la inscripción al I GT de Ceuta es de 105€, lo que incluye participación en el torneo, comidas durante los dos días del evento, recuerdo del torneo y opción a premios."
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "El precio de la inscripción al I GT de Ceuta es de 105€, lo que incluye participación en el torneo, comidas durante los dos días del evento, recuerdo del torneo y opción a premios."
             }
           },
           {
             "@type": "Question",
             "name": "¿Qué requisitos deben cumplir las listas de ejército?",
-            "acceptedAnswer": {acceptedAnswer": {
-              "@type": "Answer",   "@type": "Answer",
-              "text": "Las listas deben ser de 2000 puntos exactos, siguiendo las últimas actualizaciones del reglamento de Warhammer 40.000 y respetando las restricciones de formato Gran Torneo (GT). Todas las miniaturas deben estar pintadas con al menos tres colores y las bases terminadas."     "text": "Las listas deben ser de 2000 puntos exactos, siguiendo las últimas actualizaciones del reglamento de Warhammer 40.000 y respetando las restricciones de formato Gran Torneo (GT). Todas las miniaturas deben estar pintadas con al menos tres colores y las bases terminadas."
-            }     }
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Las listas deben ser de 2000 puntos exactos, siguiendo las últimas actualizaciones del reglamento de Warhammer 40.000 y respetando las restricciones de formato Gran Torneo (GT). Todas las miniaturas deben estar pintadas con al menos tres colores y las bases terminadas."
+            }
           }
         ]
       }
-
-
-
-</html>  </body>    </script>    </script>
+    </script>
   </body>
 </html>
