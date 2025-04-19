@@ -6,8 +6,8 @@ import AdminLayout from './AdminLayout';
 import BlogService from '../../services/BlogService';
 import { BlogPost } from '../../services/BlogService';
 import { Helmet } from 'react-helmet-async';
-import { normalizeImageUrl } from '../../utils/imageUtils'; 
-import ImageThumbnail from '../ui/ImageThumbnail';
+import SmartImage from '../ui/SmartImage'; // Cambiar aquí
+import { normalizeImageUrl } from '../../utils/imageUtils';
 
 const BlogAdmin: React.FC = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -264,11 +264,13 @@ const BlogAdmin: React.FC = () => {
                     <td className="px-4 py-3">
                       <div className="flex items-center">
                         {post.image && (
-                          <div className="h-12 w-16 bg-gray-900 rounded overflow-hidden mr-3">
-                            <ImageThumbnail 
+                          <div className="h-12 w-16 bg-gray-900 rounded overflow-hidden mr-3 relative">
+                            <SmartImage 
                               src={post.image} 
                               alt={post.title}
                               className="h-full w-full object-cover"
+                              containerClassName="h-full w-full"
+                              fallbackSrc="/images/blog/default-post.jpg"
                             />
                           </div>
                         )}
