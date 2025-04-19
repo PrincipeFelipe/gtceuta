@@ -194,3 +194,27 @@
 .ProseMirror .text-justify {
   text-align: justify;
 }
+
+/* Añadir esto para que las imágenes en el contenido se vean bien */
+
+.blog-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+}
+
+.blog-content figure {
+  margin: 2rem 0;
+}
+
+.blog-content figure img {
+  margin: 0;
+}
+
+.blog-content figure figcaption {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin-top: 0.5rem;
+}

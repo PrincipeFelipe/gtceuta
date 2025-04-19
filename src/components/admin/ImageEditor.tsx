@@ -343,11 +343,11 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, onSave, onCancel }) => {
       
       const data = await response.json();
       
-      // Construir la URL correcta para acceder desde el frontend
-      const imageUrl = `${API_URL}${data.url}`;
-      console.log("URL de imagen guardada:", imageUrl);
+      // IMPORTANTE: No construir URLs manualmente
+      console.log("URL recibida del servidor:", data.url);
       
-      onSave(imageUrl);
+      // Usar la URL tal como viene, sin concatenar absolutamente nada
+      onSave(data.url);
     } catch (err) {
       console.error('Error al guardar la imagen:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido al guardar la imagen');

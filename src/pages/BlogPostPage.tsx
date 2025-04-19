@@ -10,6 +10,8 @@ import { normalizeImageUrl } from '../utils/imageUtils';
 import '../styles/blog-content.css';
 // Importar el componente BlogContent
 import BlogContent from '../components/blog/BlogContent';
+// Importar SmartImage
+import SmartImage from '../components/ui/SmartImage';
 
 const BlogPostPage = () => {
   const { slug } = useParams();
@@ -94,13 +96,17 @@ const BlogPostPage = () => {
             Volver al blog
           </Link>
           
-          <div className="mb-8">
-            <OptimizedImage 
-              src={post.image} 
-              alt={post.title} 
-              className="w-full h-80 object-cover rounded-lg shadow-lg"
-            />
-          </div>
+          {post.image && post.image !== '/images/blog/default-post.jpg' && (
+            <div className="mb-8">
+              <SmartImage 
+                src={post.image}
+                alt={post.title}
+                className="w-full max-h-[500px] object-cover rounded-lg"
+                containerClassName="relative w-full max-h-[500px]"
+                fallbackSrc="/images/blog/default-post.jpg"
+              />
+            </div>
+          )}
           
           <header className="mb-10">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{post.title}</h1>
@@ -162,10 +168,12 @@ const BlogPostPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {relatedPosts.map(relatedPost => (
                   <div key={relatedPost.id} className="bg-gray-800 rounded-lg overflow-hidden">
-                    <OptimizedImage 
+                    <SmartImage 
                       src={relatedPost.image} 
                       alt={relatedPost.title} 
                       className="w-full h-40 object-cover"
+                      containerClassName="h-40"
+                      fallbackSrc="/images/blog/default-post.jpg"
                     />
                     <div className="p-4">
                       <h4 className="font-bold text-lg mb-2">{relatedPost.title}</h4>

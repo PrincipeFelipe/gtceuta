@@ -46,7 +46,8 @@
 .blog-content img {
   max-width: 100%;
   height: auto;
-  margin: 1rem 0;
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
   display: block;
 }
 
@@ -58,6 +59,51 @@
 .blog-content img.blog-content-image {
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.blog-content img.loading {
+  min-height: 200px;
+  background-color: #374151;
+  position: relative;
+}
+
+.blog-content img.loading::after {
+  content: "Cargando...";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #9ca3af;
+}
+
+.blog-content img.error {
+  min-height: 100px;
+  background-color: #4B5563;
+  position: relative;
+}
+
+.blog-content img.error::after {
+  content: "Error al cargar imagen";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #F87171;
+}
+
+.blog-content figure {
+  margin: 2rem 0;
+}
+
+.blog-content figure img {
+  margin: 0 auto;
+}
+
+.blog-content figcaption {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin-top: 0.5rem;
 }
 
 .blog-content pre {

@@ -1,27 +1,39 @@
+import { API_URL } from '../config/api';
+
 /**
- * Normaliza una URL de imagen para asegurar que sea una URL completa
- * @param imageUrl URL de la imagen a normalizar
- * @returns URL normalizada
+ * Normaliza una URL de imagen para asegurar que sea accesible
  */
-export const normalizeImageUrl = (imageUrl: string | undefined | null): string => {
-  if (!imageUrl) return '/images/fallback-image.png';
+export const normalizeImageUrl = (url: string): string => {
+  if (!url) return '';
   
-  // Si ya es una URL completa (http:// o https://)
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return imageUrl;
+  // Si es una imagen por defecto, devolverla tal cual
+  if (url === '/images/blog/default-post.jpg') {
+    return url;
   }
   
-  // Si es una URL relativa que empieza con /uploads/
-  if (imageUrl.startsWith('/uploads/')) {
-    return `http://localhost:4000${imageUrl}`;
+  // Si ya es una URL absoluta
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    // Corregir URLs de localhost si estamos en otro origen
+    if (url.includes('localhost:4000') && 
+        window.location.hostname === 'localhost' && 
+        window.location.port !== '4000') {
+      return url.replace('http://localhost:4000', window.location.origin);
+    }
+    return url;
   }
   
-  // Si es una URL relativa que no empieza con /
-  if (!imageUrl.startsWith('/')) {
-    return `/${imageUrl}`;
+  // Para URLs que comienzan con /uploads
+  if (url.startsWith('/uploads')) {
+    // En desarrollo, usar API_URL
+    if (window.location.hostname === 'localhost') {
+      return `${API_URL}${url}`;
+    }
+    // En producción, usarla tal cual
+    return url;
   }
   
-  return imageUrl;
+  // Para cualquier otro caso, devolver la URL tal cual
+  return url;
 };
 
 /**

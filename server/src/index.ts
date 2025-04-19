@@ -16,27 +16,65 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 4000;
 
-// Crear directorios para subidas si no existen
-const uploadsDir = path.join(__dirname, '../../uploads');
-const imagesDir = path.join(uploadsDir, 'images');
-const blogImagesDir = path.join(imagesDir, 'blog');
-const contentImagesDir = path.join(blogImagesDir, 'content');
-const sponsorsImagesDir = path.join(imagesDir, 'sponsors');
+// Crear un path absoluto para la carpeta uploads
+const uploadsPath = path.resolve(__dirname, '../uploads');
 
-[uploadsDir, imagesDir, blogImagesDir, contentImagesDir, sponsorsImagesDir].forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-    console.log(`Directorio creado: ${dir}`);
+// Verificar que existe el directorio
+if (!fs.existsSync(uploadsPath)) {
+  console.log(`Creando directorio de uploads: ${uploadsPath}`);
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
+
+console.log(`Sirviendo archivos estáticos desde: ${uploadsPath}`);
+
+// Configurar middleware para servir archivos estáticos correctamente
+app.use('/uploads', (req, res, next) => {
+  // Log detallado para depuración
+  console.log(`Solicitud de archivo estático: ${req.url}`);
+  
+  const filePath = path.join(uploadsPath, req.url);
+  
+  // Verificar que el archivo existe y registrar resultado
+  if (fs.existsSync(filePath)) {
+    console.log(`✅ Sirviendo archivo: ${filePath}`);
+    // Añadir cabeceras para mejorar el caching y prevenir problemas CORS
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  } else {
+    console.log(`❌ Archivo no encontrado: ${filePath}`);
   }
+  
+  next();
 });
 
+// Este middleware debe estar DESPUÉS del anterior
+app.use('/uploads', express.static(uploadsPath));
+
 // Middlewares
-app.use(cors());
+
+// Actualizar la configuración CORS
+
+// Configuración CORS más permisiva para desarrollo
+app.use(cors({
+  origin: function(origin, callback) {
+    // Permitir cualquier origen en desarrollo
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Solo para producción, configura orígenes específicos
+/*
+app.use(cors({
+  origin: ['https://gtceuta.com', 'https://www.gtceuta.com'],
+  credentials: true
+}));
+*/
+
 app.use(express.json({ limit: '50mb' })); // Aumentar límite para imágenes base64
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
-// Asegurarse de que esto está configurado correctamente
-app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
 // Middleware de logging para depuración
 app.use((req, res, next) => {
@@ -125,6 +163,96 @@ app.get('/api/routes', (req, res) => {
   });
 });
 
+// Añadir esta ruta de diagnóstico
+
+// Ruta para verificar archivos estáticos
+app.get('/api/check-static', (req, res) => {
+  try {
+    const { path: filePath } = req.query;
+    
+    if (!filePath || typeof filePath !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Se requiere un parámetro "path"'
+      });
+    }
+    
+    // Normalizar la ruta para asegurarse de que no hay "../" o similar
+    const normalizedPath = path.normalize(filePath).replace(/^(\.\.[/\\])+/, '');
+    
+    // Construir ruta completa
+    const fullPath = path.join(uploadsPath, normalizedPath);
+    
+    // Verificar si existe
+    const exists = fs.existsSync(fullPath);
+    
+    // Obtener información del archivo
+    let fileInfo = null;
+    if (exists) {
+      const stats = fs.statSync(fullPath);
+      fileInfo = {
+        size: stats.size,
+        created: stats.birthtime,
+        modified: stats.mtime,
+        isDirectory: stats.isDirectory()
+      };
+    }
+    
+    res.json({
+      success: true,
+      filePath: normalizedPath,
+      fullPath,
+      exists,
+      fileInfo,
+      baseUploadsPath: uploadsPath
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    });
+  }
+});
+
+// Ruta para listar todos los archivos en uploads
+app.get('/api/list-uploads', (req, res) => {
+  const listFilesRecursive = (dir, baseDir, results = []) => {
+    const files = fs.readdirSync(dir);
+    
+    files.forEach(file => {
+      const fullPath = path.join(dir, file);
+      const relativePath = path.relative(baseDir, fullPath).split(path.sep).join('/');
+      
+      if (fs.statSync(fullPath).isDirectory()) {
+        listFilesRecursive(fullPath, baseDir, results);
+      } else {
+        results.push({
+          path: relativePath,
+          size: fs.statSync(fullPath).size,
+          url: `/uploads/${relativePath}`
+        });
+      }
+    });
+    
+    return results;
+  };
+  
+  try {
+    const files = listFilesRecursive(uploadsPath, uploadsPath);
+    
+    res.json({
+      success: true,
+      count: files.length,
+      files
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    });
+  }
+});
+
 // Iniciar el servidor
 app.listen(port, () => {
   console.log(`Servidor corriendo en http://localhost:${port}`);
@@ -133,5 +261,5 @@ app.listen(port, () => {
   console.log('- POST /upload/content-image');
   console.log('- POST /upload/image');
   console.log(`Archivos estáticos en http://localhost:${port}/uploads`);
-  console.log(`Directorio de uploads: ${path.join(__dirname, '../../uploads')}`);
+  console.log(`Directorio de uploads: ${uploadsPath}`);
 });

@@ -3,7 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-// Función para decodificar base64 y guardar como archivo
+// Modificar la función saveBase64Image
+
 const saveBase64Image = (base64Data: string, directory: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     try {
@@ -33,10 +34,12 @@ const saveBase64Image = (base64Data: string, directory: string): Promise<string>
         const relativePath = path.relative(path.join(__dirname, '../../uploads'), directory);
         const urlPath = relativePath.split(path.sep).join('/');
         
-        // URL completa con el servidor
-        const fullUrl = `http://localhost:4000/uploads/${urlPath}/${fileName}`;
+        // SIEMPRE usar URL relativa - IMPORTANTE
+        const relativeUrl = `/uploads/${urlPath}/${fileName}`;
+        console.log(`Imagen guardada: ${filePath}`);
+        console.log(`URL relativa generada: ${relativeUrl}`);
         
-        resolve(fullUrl);
+        resolve(relativeUrl);
       });
     } catch (error) {
       reject(error);

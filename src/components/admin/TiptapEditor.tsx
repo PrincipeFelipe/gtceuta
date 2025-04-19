@@ -153,11 +153,11 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
           
           // Modifica la función addImage para normalizar mejor las URLs
 
+          // Modificar la parte donde se normaliza la URL recibida del servidor
           reader.onloadend = async () => {
             const base64 = reader.result as string;
             
             try {
-              // Subir imagen al servidor
               const response = await fetch(`${API_URL}/upload/content-image`, {
                 method: 'POST',
                 headers: {
@@ -166,31 +166,22 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
                 body: JSON.stringify({ image: base64 })
               });
               
-              if (!response.ok) {
-                throw new Error('Error al subir la imagen');
-              }
-              
               const data = await response.json();
+              console.log("Respuesta del servidor para imagen:", data);
               
-              // Normalizar la URL para asegurar consistencia
+              // IMPORTANTE: Normalizar la URL para que sea accesible desde el frontend
               let imageUrl = data.url;
               
-              // Asegurarse de que no hay backslashes
-              imageUrl = imageUrl.replace(/\\/g, '/');
-              
-              // Asegurarse de que la URL es absoluta para el navegador
+              // Si la URL devuelta por el servidor es relativa, convertirla a absoluta para el frontend
               if (imageUrl && !imageUrl.startsWith('http')) {
-                if (!imageUrl.startsWith('/')) {
-                  imageUrl = '/' + imageUrl;
-                }
-                
-                // Opcional: si necesitas URLs absolutas completas (con dominio)
-                // imageUrl = window.location.origin + imageUrl;
+                // Obtener la base de la URL desde window.location.origin para resolver correctamente
+                // relativo al origen actual, no a la API
+                imageUrl = `${window.location.origin}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
               }
               
-              console.log("Imagen normalizada con URL:", imageUrl);
+              console.log("Imagen con URL normalizada:", imageUrl);
               
-              // Insertar imagen con la URL normalizada
+              // Insertar imagen con la URL ya normalizada
               editor?.chain().focus().setImage({ 
                 src: imageUrl,
                 alt: 'Imagen del blog',

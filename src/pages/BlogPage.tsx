@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import Layout from '../components/Layout';
 import { Link } from 'react-router-dom';
-import OptimizedImage from '../components/OptimizedImage';
+import SmartImage from '../components/ui/SmartImage';
 import { Search, Calendar, ArrowRight } from 'lucide-react';
 import blogService, { BlogPost } from '../services/BlogService';
 
@@ -129,10 +129,12 @@ const BlogPage = () => {
               {filteredPosts.map((post) => (
                 <article key={post.id} className="bg-gray-900 rounded-lg overflow-hidden transition-transform hover:transform hover:scale-[1.02]">
                   <Link to={`/blog/${post.slug}`}>
-                    <OptimizedImage 
+                    <SmartImage 
                       src={post.image} 
                       alt={post.title} 
                       className="w-full h-48 object-cover" 
+                      containerClassName="relative h-48"
+                      fallbackSrc="/images/blog/default-post.jpg"
                     />
                   </Link>
                   <div className="p-6">
