@@ -4,12 +4,17 @@ from django.shortcuts import render
 
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
-from rest_framework.decorators import action
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import action, api_view, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import BlogPost, BlogImage
 from .serializers import BlogPostSerializer, BlogImageSerializer
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
+import base64
+import os
+from django.conf import settings
+from django.core.files.base import ContentFile
+import uuid
 
 class BlogPostViewSet(viewsets.ModelViewSet):
     queryset = BlogPost.objects.all()
@@ -136,3 +141,52 @@ class BlogImageViewSet(viewsets.ModelViewSet):
             "message": f"Se actualizaron {updated_count} imágenes",
             "updated_count": updated_count
         })
+
+@api_view(['POST'])
+@parser_classes([JSONParser])
+def upload_image(request):
+    """
+    Endpoint para subir imágenes codificadas en base64
+    """
+    if 'image' not in request.data:
+        return Response({'error': 'No se proporcionó ninguna imagen'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    image_data = request.data['image']
+    image_type = request.data.get('type', 'content')  # 'blog' o 'content'
+    
+    # Extraer la información de base64
+    if ';base64,' in image_data:
+        format, imgstr = image_data.split(';base64,')
+        ext = format.split('/')[-1]
+    else:
+        return Response({'error': 'Formato de imagen inválido'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Generar nombre de archivo y ruta
+    filename = f"{uuid.uuid4()}.{ext}"
+    
+    # Determinar ruta según tipo
+    if image_type == 'blog':
+        relative_path = os.path.join('blog', filename)
+    else:
+        relative_path = os.path.join('blog', 'content', filename)
+    
+    absolute_path = os.path.join(settings.MEDIA_ROOT, relative_path)
+    
+    # Asegurarse de que el directorio existe
+    os.makedirs(os.path.dirname(absolute_path), exist_ok=True)
+    
+    # Guardar archivo
+    try:
+        image = ContentFile(base64.b64decode(imgstr), name=filename)
+        with open(absolute_path, 'wb') as f:
+            f.write(image.read())
+        
+        # Construir URL
+        image_url = f"{settings.MEDIA_URL}{relative_path}"
+        
+        return Response({
+            'url': image_url,
+            'filename': filename
+        }, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

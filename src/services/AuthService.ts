@@ -1,4 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { API_URL } from '../config/api';
 
 // Tipos y interfaces
 // Añadir "export" antes de la definición de la interfaz
@@ -105,41 +106,48 @@ class AuthService {
   }
   
   // Iniciar sesión
-  async login(username: string, password: string): Promise<User | null> {
+  async login(username: string, password: string): Promise<any> {
     try {
-      const db = await this.db;
+      console.log("Intentando login con:", { username, API_URL });
       
-      // Buscar el usuario por nombre de usuario
-      const user = await db.getFromIndex(USERS_STORE, 'by-username', username);
+      const response = await fetch(`${API_URL}/users/login/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+        credentials: 'include'  // Importante para mantener la sesión
+      });
       
-      // Verificar si existe y la contraseña es correcta
-      if (user && this.checkPassword(password, user.passwordHash)) {
-        // Generar token de sesión
-        const sessionId = this.generateSessionId();
-        const expiresAt = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 días
-        
-        // Guardar sesión
-        await db.put(SESSIONS_STORE, {
-          id: sessionId,
-          userId: user.id,
-          expiresAt
-        });
-        
-        // Guardar token en localStorage
-        localStorage.setItem('authToken', sessionId);
-        
-        // No devolver la contraseña en la respuesta
-        const { passwordHash, ...userData } = user;
-        return userData as User;
+      if (!response.ok) {
+        console.error("Error en login:", response.status, response.statusText);
+        throw new Error('Credenciales inválidas');
       }
       
-      return null;
+      const userData = await response.json();
+      console.log("Login exitoso:", userData);
+      
+      // Asegurarse de que el rol existe y viene del backend
+      // AQUÍ ESTÁ EL PROBLEMA PRINCIPAL: userData.role es lo que viene del backend
+      if (userData && !userData.role) {
+        // Si no viene role del backend, intentamos agregarlo desde profile
+        if (userData.profile && userData.profile.role) {
+          userData.role = userData.profile.role;
+        } else {
+          userData.role = 'user'; // Solo como fallback
+        }
+      }
+      
+      // Guardar información del usuario en localStorage
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      return userData;
     } catch (error) {
-      console.error('Error al iniciar sesión:', error);
-      return null;
+      console.error('Error en login:', error);
+      throw error;
     }
   }
-  
+
   // Generar ID de sesión
   private generateSessionId(): string {
     return Math.random().toString(36).substring(2, 15) + 
@@ -172,49 +180,55 @@ class AuthService {
   }
   
   // Obtener el usuario actual
-  async getCurrentUser(): Promise<User | null> {
-    const token = localStorage.getItem('authToken');
-    if (!token) return null;
-    
+  async getCurrentUser(): Promise<any> {
     try {
-      const db = await this.db;
-      const session = await db.get(SESSIONS_STORE, token);
+      // Primero intentar obtener del localStorage
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        return user;
+      }
       
-      if (!session || session.expiresAt < Date.now()) {
-        await this.logout();
+      // Si no hay usuario en localStorage, verificar con el backend
+      const response = await fetch(`${API_URL}/users/me/`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
         return null;
       }
       
-      const user = await db.get(USERS_STORE, session.userId);
-      if (!user) {
-        await this.logout();
-        return null;
+      const user = await response.json();
+      
+      // Asegurarse de que el rol existe y viene del backend
+      if (user && !user.role) {
+        if (user.profile && user.profile.role) {
+          user.role = user.profile.role;
+        } else {
+          user.role = 'user';
+        }
       }
       
-      // No devolver la contraseña en la respuesta
-      const { passwordHash, ...userData } = user;
-      return userData as User;
+      localStorage.setItem('user', JSON.stringify(user));
+      return user;
     } catch (error) {
-      console.error('Error al obtener el usuario actual:', error);
+      console.error("Error obteniendo usuario actual:", error);
       return null;
     }
   }
   
   // Cerrar sesión
-  async logout(): Promise<boolean> {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      try {
-        const db = await this.db;
-        await db.delete(SESSIONS_STORE, token);
-        localStorage.removeItem('authToken');
-        return true;
-      } catch (error) {
-        console.error('Error al cerrar sesión:', error);
-        return false;
-      }
+  async logout(): Promise<void> {
+    try {
+      await fetch(`${API_URL}/users/logout/`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      localStorage.removeItem('user');
+    } catch (error) {
+      console.error('Error en logout:', error);
     }
-    return true;
   }
   
   // Actualizar usuario
@@ -305,5 +319,4 @@ class AuthService {
   }
 }
 
-const authService = new AuthService();
-export default authService;
+export default new AuthService();

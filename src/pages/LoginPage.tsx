@@ -1,28 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../contexts/AuthContext';
-import { Lock, User, AlertCircle } from 'lucide-react';
+import { AlertCircle, User, Lock } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const navigate = useNavigate();
-  const location = useLocation();
   const { login, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   
-  // Redirigir si ya está autenticado
+  // Redireccionar si ya está autenticado
   useEffect(() => {
     if (isAuthenticated) {
-      const from = location.state?.from?.pathname || '/admin';
-      navigate(from, { replace: true });
+      navigate('/admin');
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, navigate]);
   
-  // Manejar envío del formulario
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -35,12 +31,14 @@ const LoginPage: React.FC = () => {
     setError('');
     
     try {
+      console.log("Intentando login desde formulario...");
       const success = await login(username, password);
       
       if (!success) {
         setError('Nombre de usuario o contraseña incorrectos');
       } else {
         // La redirección se maneja en el useEffect
+        console.log("Login exitoso, debería redireccionar pronto...");
       }
     } catch (err) {
       setError('Error al iniciar sesión. Inténtalo de nuevo.');

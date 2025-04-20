@@ -1,43 +1,49 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import authService from '../services/AuthService';
-import type { User } from '../services/AuthService';
+
+interface User {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+}
 
 interface AuthContextType {
+  isAuthenticated: boolean;
   user: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
+  isAuthenticated: false,
   user: null,
   loading: true,
   login: async () => false,
   logout: async () => {},
-  isAuthenticated: false
 });
 
 export const useAuth = () => useContext(AuthContext);
 
-export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Verificar autenticación al cargar
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const isAuth = await authService.isAuthenticated();
-        setIsAuthenticated(isAuth);
-        
-        if (isAuth) {
-          const currentUser = await authService.getCurrentUser();
+        const currentUser = await authService.getCurrentUser();
+        if (currentUser) {
+          console.log("Usuario autenticado:", currentUser);
           setUser(currentUser);
+          setIsAuthenticated(true);
         }
       } catch (error) {
-        console.error('Error al verificar autenticación:', error);
+        console.error("Error verificando autenticación:", error);
       } finally {
         setLoading(false);
       }
@@ -46,35 +52,34 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     checkAuth();
   }, []);
 
-  // Función de login
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string) => {
     try {
-      const user = await authService.login(username, password);
-      if (user) {
-        setUser(user);
+      const userData = await authService.login(username, password);
+      if (userData) {
+        console.log("Datos de usuario recibidos:", userData);
+        setUser(userData);
         setIsAuthenticated(true);
         return true;
       }
       return false;
     } catch (error) {
-      console.error('Error al iniciar sesión:', error);
+      console.error("Error de login:", error);
       return false;
     }
   };
 
-  // Función de logout
-  const logout = async (): Promise<void> => {
+  const logout = async () => {
     try {
       await authService.logout();
       setUser(null);
       setIsAuthenticated(false);
     } catch (error) {
-      console.error('Error al cerrar sesión:', error);
+      console.error("Error al cerrar sesión:", error);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

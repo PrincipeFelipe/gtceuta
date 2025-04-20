@@ -1,9 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-// import sanitizeHtml from 'sanitize-html'; // Comentamos esta línea problemática
+import { API_URL } from '../config/api';
 import { isValidSlug, createSlug } from '../utils/slugUtils';
-
-// URL base para la API
-const API_URL = 'http://localhost:4000/api';
 
 // Implementación personalizada de sanitizeHtml
 function sanitizeHtml(html: string, options?: any): string {
@@ -120,14 +117,23 @@ class BlogService {
   // Obtener todos los posts
   async getAllPosts(options?: BlogSearchOptions): Promise<BlogPost[]> {
     try {
-      let url = `${API_URL}/posts`;
+      let url = `${API_URL}/posts/`;
       
       // Agregar parámetros de búsqueda a la URL
       if (options) {
         const params = new URLSearchParams();
-        if (options.searchTerm) params.append('search', options.searchTerm);
-        if (options.category) params.append('category', options.category);
-        if (options.onlyPublished) params.append('published', 'true');
+        
+        if (options.searchTerm) {
+          params.append('search', options.searchTerm);
+        }
+        
+        if (options.category) {
+          params.append('category', options.category);
+        }
+        
+        if (options.onlyPublished !== undefined) {
+          params.append('published', options.onlyPublished.toString());
+        }
         
         const queryString = params.toString();
         if (queryString) {
@@ -139,11 +145,11 @@ class BlogService {
       const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error(`Error al obtener los posts: ${response.statusText}`);
+        throw new Error(`Error HTTP: ${response.status}`);
       }
       
-      const posts = await response.json();
-      return posts;
+      const data = await response.json();
+      return data.results || data; // Django REST Framework envía los resultados en una propiedad 'results' cuando hay paginación
     } catch (error) {
       console.error('Error en getAllPosts:', error);
       throw error;
@@ -153,14 +159,14 @@ class BlogService {
   // Obtener un post por ID
   async getPostById(id: number): Promise<BlogPost | undefined> {
     try {
-      const response = await fetch(`${API_URL}/posts/${id}`);
+      const response = await fetch(`${API_URL}/posts/${id}/`);
       
       if (response.status === 404) {
         return undefined;
       }
       
       if (!response.ok) {
-        throw new Error(`Error al obtener el post: ${response.statusText}`);
+        throw new Error(`Error HTTP: ${response.status}`);
       }
       
       const post = await response.json();
@@ -174,14 +180,14 @@ class BlogService {
   // Obtener un post por slug
   async getPostBySlug(slug: string): Promise<BlogPost | undefined> {
     try {
-      const response = await fetch(`${API_URL}/posts/slug/${slug}`);
+      const response = await fetch(`${API_URL}/posts/by_slug/?slug=${slug}`);
       
       if (response.status === 404) {
         return undefined;
       }
       
       if (!response.ok) {
-        throw new Error(`Error al obtener el post: ${response.statusText}`);
+        throw new Error(`Error HTTP: ${response.status}`);
       }
       
       const post = await response.json();
@@ -198,36 +204,20 @@ class BlogService {
       // Primero subir la imagen destacada si es base64
       let imageUrl = post.image;
       if (post.image && post.image.startsWith('data:image')) {
-        imageUrl = await uploadImage(post.image);
+        imageUrl = await this.uploadImage(post.image, 'blog');
       }
       
       // Procesar el contenido HTML para subir imágenes inline
-      const processedContent = await processHtmlContent(post.content);
-      
-      // Sanear el HTML del contenido
-      const sanitizedContent = sanitizeHtml(processedContent, {
-        allowedTags: (sanitizeHtml as any).defaults.allowedTags.concat(['img']),
-        allowedAttributes: {
-          ...(sanitizeHtml as any).defaults.allowedAttributes,
-          img: ['src', 'alt', 'class', 'style']
-        }
-      });
-      
-      // Asegurar que el slug es válido
-      let slug = post.slug;
-      if (!slug || !isValidSlug(slug)) {
-        slug = createSlug(post.title);
-      }
+      const processedContent = await this.processHtmlContent(post.content);
       
       const postData = {
         ...post,
         image: imageUrl,
-        content: sanitizedContent,
-        slug: slug,
+        content: processedContent,
         date: post.date || new Date().toISOString()
       };
       
-      const response = await fetch(`${API_URL}/posts`, {
+      const response = await fetch(`${API_URL}/posts/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -236,8 +226,7 @@ class BlogService {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Error al crear el post: ${response.statusText}`);
+        throw new Error(`Error HTTP: ${response.status}`);
       }
       
       const newPost = await response.json();
@@ -254,35 +243,19 @@ class BlogService {
       // Subir la imagen destacada si es base64
       let imageUrl = post.image;
       if (post.image && post.image.startsWith('data:image')) {
-        imageUrl = await uploadImage(post.image);
+        imageUrl = await this.uploadImage(post.image, 'blog');
       }
       
       // Procesar el contenido HTML para subir imágenes inline
-      const processedContent = await processHtmlContent(post.content);
-      
-      // Sanear el HTML del contenido
-      const sanitizedContent = sanitizeHtml(processedContent, {
-        allowedTags: (sanitizeHtml as any).defaults.allowedTags.concat(['img']),
-        allowedAttributes: {
-          ...(sanitizeHtml as any).defaults.allowedAttributes,
-          img: ['src', 'alt', 'class', 'style']
-        }
-      });
-      
-      // Asegurar que el slug es válido
-      let slug = post.slug;
-      if (!slug || !isValidSlug(slug)) {
-        slug = createSlug(post.title);
-      }
+      const processedContent = await this.processHtmlContent(post.content);
       
       const postData = {
         ...post,
         image: imageUrl,
-        content: sanitizedContent,
-        slug: slug
+        content: processedContent
       };
       
-      const response = await fetch(`${API_URL}/posts/${post.id}`, {
+      const response = await fetch(`${API_URL}/posts/${post.id}/`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -291,8 +264,7 @@ class BlogService {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Error al actualizar el post: ${response.statusText}`);
+        throw new Error(`Error HTTP: ${response.status}`);
       }
     } catch (error) {
       console.error('Error en updatePost:', error);
@@ -303,20 +275,56 @@ class BlogService {
   // Eliminar un post
   async deletePost(id: number): Promise<void> {
     try {
-      const response = await fetch(`${API_URL}/posts/${id}`, {
+      const response = await fetch(`${API_URL}/posts/${id}/`, {
         method: 'DELETE'
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Error al eliminar el post: ${response.statusText}`);
+        throw new Error(`Error HTTP: ${response.status}`);
       }
     } catch (error) {
       console.error('Error en deletePost:', error);
       throw error;
     }
   }
-  
+
+  // Subir imagen
+  async uploadImage(imageBase64: string, type: 'blog' | 'content' = 'blog'): Promise<string> {
+    try {
+      // Si ya es una URL, no es necesario subirla
+      if (!imageBase64 || !imageBase64.startsWith('data:image')) {
+        return imageBase64;
+      }
+      
+      // Endpoint ajustado para Django
+      const response = await fetch(`${API_URL}/upload-image/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          image: imageBase64,
+          type: type
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error al subir la imagen: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      console.error('Error subiendo imagen:', error);
+      throw error;
+    }
+  }
+
+  // Procesamiento de HTML para contenido del blog
+  async processHtmlContent(html: string): Promise<string> {
+    // ...código existente...
+  }
+
   // Importar posts
   async importPosts(posts: BlogPost[]): Promise<{ created: number; updated: number; errors: number }> {
     try {

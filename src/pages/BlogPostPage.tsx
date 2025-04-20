@@ -13,45 +13,41 @@ import BlogContent from '../components/blog/BlogContent';
 // Importar SmartImage
 import SmartImage from '../components/ui/SmartImage';
 
+// Componente para mostrar el detalle del post de blog
 const BlogPostPage = () => {
-  const { slug } = useParams();
-  const navigate = useNavigate();
+  const { slug } = useParams<{ slug: string }>();
   const [post, setPost] = useState<BlogPost | null>(null);
-  const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+
   useEffect(() => {
-    const loadPost = async () => {
-      setLoading(true);
+    const fetchPost = async () => {
       try {
         if (!slug) {
-          navigate('/blog');
+          setError('URL inválida');
           return;
         }
         
-        const foundPost = await blogService.getPostBySlug(slug);
+        const postData = await blogService.getPostBySlug(slug);
         
-        if (!foundPost) {
-          navigate('/blog');
+        if (!postData) {
+          setError('Post no encontrado');
           return;
         }
         
-        setPost(foundPost);
-        
-        // Cargar posts relacionados
-        const related = await blogService.getRelatedPosts(foundPost.id, 2);
-        setRelatedPosts(related);
+        setPost(postData);
       } catch (error) {
-        console.error('Error al cargar el post:', error);
-        navigate('/blog');
+        console.error("Error al cargar el post:", error);
+        setError('Error al cargar el post');
       } finally {
         setLoading(false);
       }
     };
     
-    loadPost();
-  }, [slug, navigate]);
-  
+    fetchPost();
+  }, [slug]);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
       year: 'numeric',
@@ -59,7 +55,24 @@ const BlogPostPage = () => {
       day: 'numeric'
     });
   };
-  
+
+  // Renderizado del autor usando los datos de Django
+  const renderAuthor = () => {
+    if (post?.author_name) {
+      return post.author_name;
+    }
+    
+    if (post?.author_details) {
+      const { first_name, last_name, username } = post.author_details;
+      if (first_name || last_name) {
+        return `${first_name} ${last_name}`.trim();
+      }
+      return username;
+    }
+    
+    return 'Administrador';
+  };
+
   if (loading) {
     return (
       <Layout>

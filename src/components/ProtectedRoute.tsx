@@ -6,9 +6,18 @@ interface ProtectedRouteProps {
   requiredRole?: 'admin' | 'editor' | 'user';
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requiredRole }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requiredRole = 'admin' }) => {
   const { isAuthenticated, user, loading } = useAuth();
   
+  // Agregar logs para depuración
+  console.log("ProtectedRoute - Auth Status:", { 
+    isAuthenticated, 
+    user, 
+    userRole: user?.role, // Usar user.role en lugar de userRole
+    loading, 
+    requiredRole 
+  });
+
   // Mostrar indicador de carga mientras se verifica la autenticación
   if (loading) {
     return (
@@ -19,16 +28,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requiredRole }) => {
   }
   
   // Si no está autenticado, redirigir a login
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
+    console.log("No autenticado, redirigiendo a /login");
     return <Navigate to="/login" replace />;
   }
   
-  // Si se requiere un rol específico, verificar
-  if (requiredRole && user?.role !== requiredRole) {
+  // Verificar el rol del usuario - AQUÍ ESTÁ EL CAMBIO PRINCIPAL
+  if (requiredRole && user.role !== requiredRole) {
+    console.log(`Rol requerido: ${requiredRole}, Rol del usuario: ${user.role}`);
     return <Navigate to="/unauthorized" replace />;
   }
-  
+
   // El usuario está autenticado y autorizado
+  console.log("Usuario autorizado, mostrando contenido protegido");
   return <Outlet />;
 };
 

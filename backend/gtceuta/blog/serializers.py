@@ -18,6 +18,7 @@ class BlogPostSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     author_details = UserSerializer(source='author', read_only=True)
     images = BlogImageSerializer(many=True, read_only=True)
+    tags = serializers.CharField(required=False, allow_blank=True)
     
     class Meta:
         model = BlogPost
@@ -30,3 +31,17 @@ class BlogPostSerializer(serializers.ModelSerializer):
         if obj.author:
             return f"{obj.author.first_name} {obj.author.last_name}".strip() or obj.author.username
         return None
+    
+    def validate_tags(self, value):
+        """
+        Valida que el campo tags sea una cadena que puede convertirse a lista si es necesario
+        """
+        # Si ya es una cadena, lo dejamos como está
+        if isinstance(value, str):
+            return value
+            
+        # Si es una lista, la convertimos a una cadena separada por comas
+        if isinstance(value, list):
+            return ','.join(value)
+            
+        return ''

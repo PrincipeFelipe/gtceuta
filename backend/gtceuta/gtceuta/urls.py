@@ -22,6 +22,8 @@ from rest_framework.routers import DefaultRouter
 from blog.views import BlogPostViewSet, BlogImageViewSet
 from sponsors.views import SponsorViewSet
 from users.views import UserViewSet
+import blog.views as blog_views
+import sponsors.views as sponsors_views
 
 # Configurar el router para las APIs
 router = DefaultRouter()
@@ -34,6 +36,12 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api-auth/', include('rest_framework.urls')),
+]
+
+# Añade esta nueva ruta
+urlpatterns += [
+    path('api/upload-image/', blog_views.upload_image, name='upload-image'),
+    path('api/upload-logo/', sponsors_views.upload_logo, name='upload-logo'),
 ]
 
 # Servir archivos estáticos y multimedia durante el desarrollo

@@ -65,6 +65,12 @@ class BlogPost(models.Model):
             return os.path.join('media', 'blog', self.slug)
         return None
 
+    def get_tags_list(self):
+        """Convierte la cadena de tags en una lista"""
+        if not self.tags:
+            return []
+        return [tag.strip() for tag in self.tags.split(',') if tag.strip()]
+
 @receiver(pre_delete, sender=BlogPost)
 def delete_post_images(sender, instance, **kwargs):
     """

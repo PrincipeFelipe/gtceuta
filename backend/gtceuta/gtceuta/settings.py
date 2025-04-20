@@ -49,7 +49,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Añadido para CORS
+    'corsheaders.middleware.CorsMiddleware',  # Debe estar antes de CommonMiddleware
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -166,11 +166,26 @@ REST_FRAMEWORK = {
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # En desarrollo permite todos los orígenes
 # Para producción, especificar los orígenes permitidos:
 CORS_ALLOWED_ORIGINS = [
-    'https://gtceuta.com',
+    'http://localhost:3000',  # Frontend en desarrollo
+    'https://gtceuta.com',    # Frontend en producción
     'https://www.gtceuta.com',
-    'http://localhost:3000',
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+# Asegúrate de que estos ajustes estén configurados correctamente
+CSRF_COOKIE_NAME = 'csrftoken'
+CSRF_HEADER_NAME = 'X-CSRFToken'
+CSRF_COOKIE_SECURE = not DEBUG  # True en producción, False en desarrollo
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+    'https://gtceuta.com',
+    'https://www.gtceuta.com',
+]
+
+# Permitir cookies en solicitudes cross-origin
+CORS_ALLOW_CREDENTIALS = True
+SESSION_COOKIE_SAMESITE = 'Lax'  # O 'None' si es necesario (requiere HTTPS)
+CSRF_COOKIE_SAMESITE = 'Lax'     # O 'None' si es necesario (requiere HTTPS)
 
 # Configuración para manejar el modelo de usuario personalizado (si lo necesitamos)
 # AUTH_USER_MODEL = 'users.User'

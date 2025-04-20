@@ -40,10 +40,10 @@ const BlogPage = () => {
   // Filtrar los posts basados en la búsqueda y categoría
   const filteredPosts = posts.filter(post => {
     const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        post.excerpt.toLowerCase().includes(searchTerm.toLowerCase());
-    
+                      (post.excerpt && post.excerpt.toLowerCase().includes(searchTerm.toLowerCase()));
+  
     const matchesCategory = selectedCategory === 'todos' || post.category === selectedCategory;
-    
+  
     return matchesSearch && matchesCategory;
   });
 
