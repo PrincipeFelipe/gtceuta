@@ -1,10 +1,7 @@
 from django.shortcuts import render
-
-# blog/views.py
-
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
-from rest_framework.decorators import action, api_view, parser_classes
+from rest_framework.decorators import action, api_view, parser_classes, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import BlogPost, BlogImage
@@ -12,14 +9,13 @@ from .serializers import BlogPostSerializer, BlogImageSerializer
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
 import base64
 import os
+import uuid
 from django.conf import settings
 from django.core.files.base import ContentFile
-import uuid
 
 class BlogPostViewSet(viewsets.ModelViewSet):
     queryset = BlogPost.objects.all()
     serializer_class = BlogPostSerializer
-    # Eliminamos lookup_field = 'slug' para usar el ID por defecto
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['published', 'featured', 'category']
@@ -32,6 +28,11 @@ class BlogPostViewSet(viewsets.ModelViewSet):
             return queryset
         return queryset.filter(published=True)
     
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
     
@@ -42,21 +43,24 @@ class BlogPostViewSet(viewsets.ModelViewSet):
         """
         post = self.get_object()
         images = request.FILES.getlist('images')
-        captions = request.data.getlist('captions')
+        captions = request.data.getlist('captions') if 'captions' in request.data else []
+        is_content = request.data.get('is_content', 'false').lower() == 'true'
         
         if not images:
             return Response({"error": "No se han enviado imágenes"}, status=status.HTTP_400_BAD_REQUEST)
         
         created_images = []
         for i, image in enumerate(images):
-            caption = captions[i] if i < len(captions) else None
+            caption = captions[i] if i < len(captions) else ''
             blog_image = BlogImage.objects.create(
                 post=post,
                 image=image,
                 caption=caption,
-                order=BlogImage.objects.filter(post=post).count()
+                is_content_image=is_content,
+                order=BlogImage.objects.filter(post=post, is_content_image=is_content).count()
             )
-            created_images.append(BlogImageSerializer(blog_image).data)
+            serializer = BlogImageSerializer(blog_image, context={'request': request})
+            created_images.append(serializer.data)
         
         return Response(created_images, status=status.HTTP_201_CREATED)
     
@@ -66,8 +70,15 @@ class BlogPostViewSet(viewsets.ModelViewSet):
         Devuelve todas las imágenes asociadas a un post.
         """
         post = self.get_object()
+        image_type = request.query_params.get('type', None)
+        
         images = post.images.all()
-        serializer = BlogImageSerializer(images, many=True)
+        if image_type == 'content':
+            images = images.filter(is_content_image=True)
+        elif image_type == 'gallery':
+            images = images.filter(is_content_image=False)
+            
+        serializer = BlogImageSerializer(images, many=True, context={'request': request})
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
@@ -79,7 +90,7 @@ class BlogPostViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(featured_posts, many=True)
         return Response(serializer.data)
-        
+    
     @action(detail=False, methods=['get'])
     def by_slug(self, request):
         """
@@ -98,9 +109,8 @@ class BlogPostViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        # Realizar operaciones adicionales antes de eliminar si es necesario
+        # Los signals se encargan de eliminar los archivos
         response = super().destroy(request, *args, **kwargs)
-        # Los signals se encargarán de eliminar los archivos
         return response
 
 class BlogImageViewSet(viewsets.ModelViewSet):
@@ -109,11 +119,22 @@ class BlogImageViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
     parser_classes = [MultiPartParser, FormParser]
     
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
     def get_queryset(self):
         queryset = super().get_queryset()
         post_id = self.request.query_params.get('post')
+        content_only = self.request.query_params.get('content_only', 'false').lower() == 'true'
+        
         if post_id:
             queryset = queryset.filter(post_id=post_id)
+        
+        if content_only:
+            queryset = queryset.filter(is_content_image=True)
+            
         return queryset
     
     @action(detail=False, methods=['post'])
@@ -144,6 +165,7 @@ class BlogImageViewSet(viewsets.ModelViewSet):
 
 @api_view(['POST'])
 @parser_classes([JSONParser])
+@permission_classes([IsAuthenticated])
 def upload_image(request):
     """
     Endpoint para subir imágenes codificadas en base64
@@ -153,6 +175,8 @@ def upload_image(request):
     
     image_data = request.data['image']
     image_type = request.data.get('type', 'content')  # 'blog' o 'content'
+    post_id = request.data.get('post_id')
+    caption = request.data.get('caption', '')
     
     # Extraer la información de base64
     if ';base64,' in image_data:
@@ -161,32 +185,78 @@ def upload_image(request):
     else:
         return Response({'error': 'Formato de imagen inválido'}, status=status.HTTP_400_BAD_REQUEST)
     
-    # Generar nombre de archivo y ruta
+    # Generar nombre de archivo único
     filename = f"{uuid.uuid4()}.{ext}"
     
-    # Determinar ruta según tipo
-    if image_type == 'blog':
-        relative_path = os.path.join('blog', filename)
-    else:
-        relative_path = os.path.join('blog', 'content', filename)
-    
-    absolute_path = os.path.join(settings.MEDIA_ROOT, relative_path)
-    
-    # Asegurarse de que el directorio existe
-    os.makedirs(os.path.dirname(absolute_path), exist_ok=True)
-    
-    # Guardar archivo
     try:
+        # Si se proporciona un ID de post, usar esa estructura de directorio
+        if post_id:
+            try:
+                post = BlogPost.objects.get(id=post_id)
+                
+                # Determinar la ruta según el tipo de imagen
+                if image_type == 'main':
+                    # Para imagen principal, usamos siempre el mismo nombre
+                    relative_path = os.path.join('blog', post.slug, f"main.{ext}")
+                    post.image = relative_path
+                    post.save(update_fields=['image'])
+                elif image_type == 'content':
+                    relative_path = os.path.join('blog', post.slug, 'content', filename)
+                    # Crear registro en BlogImage
+                    image_obj = BlogImage(
+                        post=post,
+                        caption=caption,
+                        is_content_image=True,
+                        order=BlogImage.objects.filter(post=post, is_content_image=True).count()
+                    )
+                else:  # gallery
+                    relative_path = os.path.join('blog', post.slug, 'gallery', filename)
+                    # Crear registro en BlogImage
+                    image_obj = BlogImage(
+                        post=post,
+                        caption=caption,
+                        is_content_image=False,
+                        order=BlogImage.objects.filter(post=post, is_content_image=False).count()
+                    )
+            except BlogPost.DoesNotExist:
+                return Response({'error': 'Post no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            # Si no hay ID de post, usar una estructura genérica
+            if image_type == 'content':
+                relative_path = os.path.join('blog', 'content', filename)
+            else:
+                relative_path = os.path.join('blog', 'temp', filename)
+        
+        absolute_path = os.path.join(settings.MEDIA_ROOT, relative_path)
+        
+        # Asegurarse de que el directorio existe
+        os.makedirs(os.path.dirname(absolute_path), exist_ok=True)
+        
+        # Guardar archivo
         image = ContentFile(base64.b64decode(imgstr), name=filename)
         with open(absolute_path, 'wb') as f:
             f.write(image.read())
         
+        # Si estamos creando una imagen de blog, guardar el objeto
+        if post_id and image_type != 'main':
+            image_obj.image = relative_path
+            image_obj.save()
+            
+            # Para devolver la URL completa
+            request_obj = request._request if hasattr(request, '_request') else request
+            image_url = request_obj.build_absolute_uri(f"{settings.MEDIA_URL}{relative_path}")
+            
+            serializer = BlogImageSerializer(image_obj, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
         # Construir URL
-        image_url = f"{settings.MEDIA_URL}{relative_path}"
+        request_obj = request._request if hasattr(request, '_request') else request
+        image_url = request_obj.build_absolute_uri(f"{settings.MEDIA_URL}{relative_path}")
         
         return Response({
             'url': image_url,
-            'filename': filename
+            'filename': filename,
+            'path': relative_path
         }, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

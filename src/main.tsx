@@ -27,6 +27,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 // Añadir estas importaciones:
 import AdminSponsorsPage from './pages/admin/AdminSponsorsPage';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Importar CSS
 import './index.css';
@@ -81,41 +82,43 @@ initializeData().catch(console.error);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <HelmetProvider>
-      <AuthProvider>
-        <Router>
-          <ScrollToTop />
-          <Routes>
-            {/* Rutas públicas */}
-            <Route path="/" element={<App />} />
-            <Route path="/sobre-el-torneo" element={<SobreElTorneoPage />} />
-            <Route path="/bases-del-torneo" element={<ReglasPage />} />
-            <Route path="/faq" element={<FaqPage />} />
-            <Route path="/blog" element={<BlogPage />} />
-            <Route path="/blog/:slug" element={<BlogPostPage />} />
-            <Route path="/colaboradores" element={<Colaboradores />} />
-            <Route path="/contacto" element={<ContactoPage />} />
-            <Route path="/galeria" element={<GaleriaPage />} />
-            <Route path="/inscripcion" element={<InscripcionPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/unauthorized" element={<UnauthorizedPage />} />
-            
-            {/* Rutas protegidas - Admin */}
-            <Route element={<ProtectedRoute requiredRole="admin" />}>
-              <Route path="/admin" element={<BlogDashboard />} />
-              <Route path="/admin/blog" element={<BlogAdmin />} />
-              <Route path="/admin/blog/new" element={<BlogForm />} />
-              <Route path="/admin/blog/edit/:id" element={<BlogForm />} />
-              <Route path="/admin/blog/import-export" element={<BlogImportExport />} />
-              <Route path="/admin/settings" element={<AdminSettings />} />
-              <Route path="/admin/sponsors" element={<AdminSponsorsPage />} />
-            </Route>
-            
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Router>
-      </AuthProvider>
-    </HelmetProvider>
+    <ErrorBoundary>
+      <HelmetProvider>
+        <AuthProvider>
+          <Router>
+            <ScrollToTop />
+            <Routes>
+              {/* Rutas públicas */}
+              <Route path="/" element={<App />} />
+              <Route path="/sobre-el-torneo" element={<SobreElTorneoPage />} />
+              <Route path="/bases-del-torneo" element={<ReglasPage />} />
+              <Route path="/faq" element={<FaqPage />} />
+              <Route path="/blog" element={<BlogPage />} />
+              <Route path="/blog/:slug" element={<BlogPostPage />} />
+              <Route path="/colaboradores" element={<Colaboradores />} />
+              <Route path="/contacto" element={<ContactoPage />} />
+              <Route path="/galeria" element={<GaleriaPage />} />
+              <Route path="/inscripcion" element={<InscripcionPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/unauthorized" element={<UnauthorizedPage />} />
+              
+              {/* Rutas protegidas - Admin */}
+              <Route element={<ProtectedRoute requiredRole="admin" />}>
+                <Route path="/admin" element={<BlogDashboard />} />
+                <Route path="/admin/blog" element={<BlogAdmin />} />
+                <Route path="/admin/blog/new" element={<BlogForm />} />
+                <Route path="/admin/blog/edit/:id" element={<BlogForm />} />
+                <Route path="/admin/blog/import-export" element={<BlogImportExport />} />
+                <Route path="/admin/settings" element={<AdminSettings />} />
+                <Route path="/admin/sponsors" element={<AdminSponsorsPage />} />
+              </Route>
+              
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Router>
+        </AuthProvider>
+      </HelmetProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
 

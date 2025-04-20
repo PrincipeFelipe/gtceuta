@@ -19,11 +19,14 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
-from blog.views import BlogPostViewSet, BlogImageViewSet
-from sponsors.views import SponsorViewSet
+from blog.views import BlogPostViewSet, BlogImageViewSet, upload_image
+from sponsors.views import SponsorViewSet, upload_logo
 from users.views import UserViewSet
-import blog.views as blog_views
-import sponsors.views as sponsors_views
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView,
+)
 
 # Configurar el router para las APIs
 router = DefaultRouter()
@@ -36,12 +39,17 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api-auth/', include('rest_framework.urls')),
+    
+    # JWT Authentication endpoints
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
 ]
 
 # Añade esta nueva ruta
 urlpatterns += [
-    path('api/upload-image/', blog_views.upload_image, name='upload-image'),
-    path('api/upload-logo/', sponsors_views.upload_logo, name='upload-logo'),
+    path('api/upload-image/', upload_image, name='upload-image'),
+    path('api/upload-logo/', upload_logo, name='upload-logo'),
 ]
 
 # Servir archivos estáticos y multimedia durante el desarrollo

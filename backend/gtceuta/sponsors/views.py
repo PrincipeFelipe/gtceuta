@@ -1,15 +1,12 @@
 from django.shortcuts import render
-
-# sponsors/views.py
-
 from rest_framework import viewsets, filters, status
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from rest_framework.decorators import action, api_view, parser_classes
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from rest_framework.decorators import action, api_view, parser_classes, permission_classes
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Sponsor
 from .serializers import SponsorSerializer
-from rest_framework.parsers import JSONParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.core.files.base import ContentFile
 import base64
 import uuid
@@ -21,9 +18,15 @@ class SponsorViewSet(viewsets.ModelViewSet):
     serializer_class = SponsorSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['active', 'tier', 'type']
+    filterset_fields = ['active']
     search_fields = ['name', 'description']
-    ordering_fields = ['name', 'tier', 'order', 'type']
+    ordering_fields = ['order', 'name']
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -47,11 +50,8 @@ class SponsorViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def bulk_update_order(self, request):
         """
-        Actualiza el orden de múltiples sponsors
+        Actualiza el orden de múltiples patrocinadores
         """
-        if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({"error": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
-            
         sponsors_data = request.data
         updated_count = 0
         
@@ -137,13 +137,13 @@ class SponsorViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        # Realizar operaciones adicionales antes de eliminar si es necesario
+        # Los signals se encargarán de eliminar el archivo
         response = super().destroy(request, *args, **kwargs)
-        # Los signals se habrán encargado de eliminar el archivo
         return response
 
 @api_view(['POST'])
 @parser_classes([JSONParser])
+@permission_classes([IsAuthenticated])
 def upload_logo(request):
     """
     Endpoint para subir logos de patrocinadores
@@ -152,6 +152,7 @@ def upload_logo(request):
         return Response({'error': 'No se proporcionó ningún logo'}, status=status.HTTP_400_BAD_REQUEST)
     
     logo_data = request.data['logo']
+    sponsor_id = request.data.get('sponsor_id')
     
     # Extraer la información de base64
     if ';base64,' in logo_data:
@@ -160,26 +161,46 @@ def upload_logo(request):
     else:
         return Response({'error': 'Formato de imagen inválido'}, status=status.HTTP_400_BAD_REQUEST)
     
-    # Generar nombre de archivo y ruta
-    filename = f"{uuid.uuid4()}.{ext}"
-    relative_path = os.path.join('sponsors', filename)
-    absolute_path = os.path.join(settings.MEDIA_ROOT, relative_path)
-    
-    # Asegurarse de que el directorio existe
-    os.makedirs(os.path.dirname(absolute_path), exist_ok=True)
-    
-    # Guardar archivo
     try:
+        # Generar nombre de archivo y ruta
+        filename = f"{uuid.uuid4()}.{ext}"
+        
+        if sponsor_id:
+            # Si se proporciona un ID de sponsor, usar esa estructura
+            try:
+                sponsor = Sponsor.objects.get(id=sponsor_id)
+                relative_path = os.path.join('sponsors', str(sponsor.id), filename)
+                # Actualizar el sponsor
+                sponsor.logo = relative_path
+                sponsor.save(update_fields=['logo'])
+            except Sponsor.DoesNotExist:
+                return Response({'error': 'Patrocinador no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            # Si no hay ID, usar directorio temporal
+            relative_path = os.path.join('sponsors', 'temp', filename)
+        
+        absolute_path = os.path.join(settings.MEDIA_ROOT, relative_path)
+        
+        # Asegurarse de que el directorio existe
+        os.makedirs(os.path.dirname(absolute_path), exist_ok=True)
+        
+        # Guardar archivo
         logo = ContentFile(base64.b64decode(imgstr), name=filename)
         with open(absolute_path, 'wb') as f:
             f.write(logo.read())
         
         # Construir URL
-        logo_url = f"{settings.MEDIA_URL}{relative_path}"
+        request_obj = request._request if hasattr(request, '_request') else request
+        logo_url = request_obj.build_absolute_uri(f"{settings.MEDIA_URL}{relative_path}")
+        
+        if sponsor_id:
+            serializer = SponsorSerializer(sponsor, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
         
         return Response({
             'url': logo_url,
-            'filename': filename
+            'filename': filename,
+            'path': relative_path
         }, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

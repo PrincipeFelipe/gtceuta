@@ -6,11 +6,15 @@ import { API_URL } from '../config/api';
 export interface User {
   id: number;
   username: string;
-  passwordHash: string; // En producción deberías usar un hash real
-  role: 'admin' | 'editor' | 'user';
-  name: string;
   email: string;
-  avatar?: string;
+  first_name: string;
+  last_name: string;
+  role: string; // El rol lo determinaremos según los permisos del usuario
+}
+
+interface AuthTokens {
+  access: string;
+  refresh: string;
 }
 
 // Esquema de base de datos
@@ -106,104 +110,85 @@ class AuthService {
   }
   
   // Iniciar sesión
-  async login(username: string, password: string): Promise<any> {
+  async login(username: string, password: string): Promise<User | null> {
     try {
-      console.log("Intentando login con:", { username, API_URL });
+      console.log("Intentando login con:", { username });
       
-      const response = await fetch(`${API_URL}/users/login/`, {
+      // Corregir la URL para evitar la duplicación de 'api'
+      const tokenUrl = API_URL.endsWith('/api') 
+        ? `${API_URL}/token/` 
+        : `${API_URL}/api/token/`;
+      
+      const response = await fetch(tokenUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
-        credentials: 'include'  // Importante para mantener la sesión
+        body: JSON.stringify({ username, password })
       });
       
       if (!response.ok) {
         console.error("Error en login:", response.status, response.statusText);
-        throw new Error('Credenciales inválidas');
+        return null;
       }
       
-      const userData = await response.json();
-      console.log("Login exitoso:", userData);
+      const tokens: AuthTokens = await response.json();
       
-      // Asegurarse de que el rol existe y viene del backend
-      // AQUÍ ESTÁ EL PROBLEMA PRINCIPAL: userData.role es lo que viene del backend
-      if (userData && !userData.role) {
-        // Si no viene role del backend, intentamos agregarlo desde profile
-        if (userData.profile && userData.profile.role) {
-          userData.role = userData.profile.role;
-        } else {
-          userData.role = 'user'; // Solo como fallback
-        }
-      }
+      // Guardar tokens en localStorage
+      localStorage.setItem('accessToken', tokens.access);
+      localStorage.setItem('refreshToken', tokens.refresh);
       
-      // Guardar información del usuario en localStorage
-      localStorage.setItem('user', JSON.stringify(userData));
-      
+      // Obtener datos del usuario
+      const userData = await this.getCurrentUser();
       return userData;
     } catch (error) {
       console.error('Error en login:', error);
-      throw error;
-    }
-  }
-
-  // Generar ID de sesión
-  private generateSessionId(): string {
-    return Math.random().toString(36).substring(2, 15) + 
-           Math.random().toString(36).substring(2, 15) +
-           Date.now().toString(36);
-  }
-  
-  // Verificar si el usuario está autenticado
-  async isAuthenticated(): Promise<boolean> {
-    const token = localStorage.getItem('authToken');
-    if (!token) return false;
-    
-    try {
-      const db = await this.db;
-      const session = await db.get(SESSIONS_STORE, token);
-      
-      if (!session) return false;
-      
-      // Verificar si la sesión expiró
-      if (session.expiresAt < Date.now()) {
-        await this.logout();
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Error al verificar autenticación:', error);
-      return false;
+      return null;
     }
   }
   
   // Obtener el usuario actual
-  async getCurrentUser(): Promise<any> {
+  async getCurrentUser(): Promise<User | null> {
     try {
-      // Primero intentar obtener del localStorage
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        return user;
+      const accessToken = localStorage.getItem('accessToken');
+      
+      if (!accessToken) {
+        return null;
       }
       
-      // Si no hay usuario en localStorage, verificar con el backend
-      const response = await fetch(`${API_URL}/users/me/`, {
-        credentials: 'include'
+      // Aplicar la misma corrección para la URL de usuario actual
+      const userUrl = API_URL.endsWith('/api') 
+        ? `${API_URL}/users/me/` 
+        : `${API_URL}/api/users/me/`;
+      
+      const response = await fetch(userUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
       });
       
       if (!response.ok) {
+        if (response.status === 401) {
+          // Token expirado, intentar renovar
+          const refreshed = await this.refreshToken();
+          if (refreshed) {
+            return this.getCurrentUser();
+          } else {
+            this.logout();
+            return null;
+          }
+        }
         return null;
       }
       
       const user = await response.json();
       
-      // Asegurarse de que el rol existe y viene del backend
-      if (user && !user.role) {
-        if (user.profile && user.profile.role) {
-          user.role = user.profile.role;
+      // Determinar rol basado en permisos (esto es un ejemplo, ajustar según tu backend)
+      if (!user.role) {
+        if (user.is_superuser) {
+          user.role = 'admin';
+        } else if (user.is_staff) {
+          user.role = 'editor';
         } else {
           user.role = 'user';
         }
@@ -217,18 +202,72 @@ class AuthService {
     }
   }
   
-  // Cerrar sesión
-  async logout(): Promise<void> {
+  // Refrescar el token
+  async refreshToken(): Promise<boolean> {
     try {
-      await fetch(`${API_URL}/users/logout/`, {
+      const refreshToken = localStorage.getItem('refreshToken');
+      
+      if (!refreshToken) {
+        return false;
+      }
+      
+      // Aplicar la misma corrección para la URL de refresh token
+      const refreshUrl = API_URL.endsWith('/api') 
+        ? `${API_URL}/token/refresh/` 
+        : `${API_URL}/api/token/refresh/`;
+      
+      const response = await fetch(refreshUrl, {
         method: 'POST',
-        credentials: 'include'
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh: refreshToken })
       });
       
-      localStorage.removeItem('user');
+      if (!response.ok) {
+        return false;
+      }
+      
+      const tokens = await response.json();
+      localStorage.setItem('accessToken', tokens.access);
+      return true;
     } catch (error) {
-      console.error('Error en logout:', error);
+      console.error('Error al refrescar token:', error);
+      return false;
     }
+  }
+  
+  // Verificar si el usuario está autenticado
+  async isAuthenticated(): Promise<boolean> {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return false;
+    
+    try {
+      // Aplicar la misma corrección para la URL de verificación
+      const verifyUrl = API_URL.endsWith('/api') 
+        ? `${API_URL}/token/verify/` 
+        : `${API_URL}/api/token/verify/`;
+      
+      const response = await fetch(verifyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token })
+      });
+      
+      return response.ok;
+    } catch (error) {
+      console.error('Error al verificar token:', error);
+      return false;
+    }
+  }
+  
+  // Cerrar sesión
+  async logout(): Promise<void> {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
   }
   
   // Actualizar usuario

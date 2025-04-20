@@ -1,8 +1,9 @@
 import os
 import shutil
-from django.db.models.signals import pre_delete, post_delete
+from django.db.models.signals import pre_delete, pre_save
 from django.dispatch import receiver
 from .models import BlogPost, BlogImage
+from django.conf import settings
 from .utils import clean_empty_directories
 
 @receiver(pre_delete, sender=BlogPost)

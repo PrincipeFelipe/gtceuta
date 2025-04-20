@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from .serializers import UserSerializer
+from rest_framework.views import APIView
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -42,4 +43,11 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def me(self, request):
         serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        serializer = UserSerializer(request.user)
         return Response(serializer.data)

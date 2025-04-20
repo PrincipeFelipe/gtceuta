@@ -37,8 +37,7 @@ const LoginPage: React.FC = () => {
       if (!success) {
         setError('Nombre de usuario o contraseña incorrectos');
       } else {
-        // La redirección se maneja en el useEffect
-        console.log("Login exitoso, debería redireccionar pronto...");
+        console.log("Login exitoso, redireccionando...");
       }
     } catch (err) {
       setError('Error al iniciar sesión. Inténtalo de nuevo.');

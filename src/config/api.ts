@@ -4,7 +4,8 @@
  */
 
 // URL base para la API según el entorno
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// Asegúrate de que este valor NO termina con /api si usas '/api' en tus rutas
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Otras configuraciones relacionadas con la API
 export const API_TIMEOUT = 30000; // 30 segundos

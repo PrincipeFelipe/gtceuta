@@ -1,14 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import authService from '../services/AuthService';
-
-interface User {
-  id: number;
-  username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-}
+import authService, { User } from '../services/AuthService';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -36,11 +27,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const currentUser = await authService.getCurrentUser();
-        if (currentUser) {
-          console.log("Usuario autenticado:", currentUser);
-          setUser(currentUser);
-          setIsAuthenticated(true);
+        // Verificar si hay token y si es válido
+        const isAuth = await authService.isAuthenticated();
+        
+        if (isAuth) {
+          const currentUser = await authService.getCurrentUser();
+          if (currentUser) {
+            console.log("Usuario autenticado:", currentUser);
+            setUser(currentUser);
+            setIsAuthenticated(true);
+          } else {
+            console.log("Token válido pero no se pudo obtener el usuario");
+            setIsAuthenticated(false);
+          }
+        } else {
+          console.log("No autenticado o token inválido");
+          setIsAuthenticated(false);
         }
       } catch (error) {
         console.error("Error verificando autenticación:", error);
@@ -56,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userData = await authService.login(username, password);
       if (userData) {
-        console.log("Datos de usuario recibidos:", userData);
+        console.log("Login exitoso:", userData);
         setUser(userData);
         setIsAuthenticated(true);
         return true;

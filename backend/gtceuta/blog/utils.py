@@ -1,19 +1,27 @@
 import os
+import shutil
+from django.conf import settings
 
-def clean_empty_directories(path):
+def clean_empty_directories(directory):
     """
-    Función recursiva para eliminar directorios vacíos
+    Elimina recursivamente directorios vacíos partiendo del directorio dado
+    hasta llegar al directorio media/blog
     """
-    if not os.path.isdir(path):
+    if not directory or not os.path.exists(directory):
         return
     
-    # Recorrer todos los elementos del directorio
-    for item in os.listdir(path):
-        item_path = os.path.join(path, item)
-        if os.path.isdir(item_path):
-            clean_empty_directories(item_path)
-    
-    # Comprobar si el directorio está vacío después de la recursión
-    if len(os.listdir(path)) == 0:
-        os.rmdir(path)
-        print(f"Eliminado directorio vacío: {path}")
+    # Comprobar si el directorio está vacío
+    if os.path.exists(directory) and not os.listdir(directory):
+        try:
+            os.rmdir(directory)
+            print(f"Eliminado directorio vacío: {directory}")
+            
+            # Continuar con el directorio padre
+            parent_dir = os.path.dirname(directory)
+            
+            # Detener el proceso cuando llegamos a la raíz de medios o al directorio de blog
+            media_root = os.path.join(settings.MEDIA_ROOT, 'blog')
+            if parent_dir and os.path.exists(parent_dir) and parent_dir != media_root:
+                clean_empty_directories(parent_dir)
+        except Exception as e:
+            print(f"Error al eliminar directorio vacío: {str(e)}")
