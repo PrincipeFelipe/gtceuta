@@ -1,16 +1,24 @@
 // src/utils/tokenUtils.js
 import { jwtDecode } from 'jwt-decode';
 
-export const setToken = (token) => {
-  localStorage.setItem('authToken', token);
+// Token storage utilities
+
+export const setToken = (accessToken, refreshToken) => {
+  localStorage.setItem('accessToken', accessToken);
+  localStorage.setItem('refreshToken', refreshToken);
 };
 
 export const getToken = () => {
-  return localStorage.getItem('authToken');
+  return localStorage.getItem('accessToken');
+};
+
+export const getRefreshToken = () => {
+  return localStorage.getItem('refreshToken');
 };
 
 export const removeToken = () => {
-  localStorage.removeItem('authToken');
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
 };
 
 export const isTokenValid = () => {

@@ -1,14 +1,19 @@
 // src/services/authService.js
 import api from './api';
-import { setToken, removeToken } from '../utils/tokenUtils';
+import { setToken, removeToken, getToken } from '../utils/tokenUtils';
 
 export const login = async (credentials) => {
   try {
+    // Ajusta esta ruta según la configuración de tu backend
     const response = await api.post('/token/', credentials);
-    setToken(response.data.access);
+    // O alternativa:
+    // const response = await api.post('/users/login/', credentials);
+    
+    const { access, refresh } = response.data;
+    setToken(access, refresh);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { detail: 'Error en la autenticación' };
+    throw error.response?.data || { detail: 'Error en el servidor' };
   }
 };
 
@@ -21,7 +26,7 @@ export const getCurrentUser = async () => {
     const response = await api.get('/users/me/');
     return response.data;
   } catch (error) {
-    throw error;
+    throw error.response?.data || { detail: 'Error al obtener datos del usuario' };
   }
 };
 
@@ -33,4 +38,9 @@ export const refreshToken = async (refreshToken) => {
   } catch (error) {
     throw error;
   }
+};
+
+export const checkAuthStatus = () => {
+  const token = getToken();
+  return !!token;
 };

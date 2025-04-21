@@ -5,8 +5,9 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
 import theme from './theme';
-import './styles/global.css'; // Solo importamos los estilos globales
+import './styles/global.css';
 
+// Importaciones de páginas
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import UsersPage from './pages/users/UsersPage';
@@ -18,8 +19,8 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AuthProvider>
-        <Router>
+      <Router>               {/* Router debe ser el padre de AuthProvider */}
+        <AuthProvider>       {/* AuthProvider ahora está dentro de Router */}
           <Routes>
             <Route path="/login" element={<Login />} />
             
@@ -49,8 +50,8 @@ function App() {
             
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
-        </Router>
-      </AuthProvider>
+        </AuthProvider>
+      </Router>
     </ThemeProvider>
   );
 }

@@ -1,50 +1,56 @@
 // src/contexts/AuthContext.jsx
 import React, { createContext, useEffect, useState } from 'react';
-import { getCurrentUser, logout } from '../services/authService';
-import { isTokenValid } from '../utils/tokenUtils';
+import { useNavigate } from 'react-router-dom';
+import { logout, getCurrentUser, checkAuthStatus } from '../services/authService';
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      if (isTokenValid()) {
+    const initAuth = async () => {
+      if (checkAuthStatus()) {
         try {
           const userData = await getCurrentUser();
           setUser(userData);
-        } catch (err) {
-          console.error('Error obteniendo datos del usuario:', err);
-          setError(err);
-          logout();
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Error al verificar autenticación', error);
+          logoutUser();
         }
-      } else {
-        setUser(null);
       }
       setLoading(false);
     };
 
-    checkAuth();
+    initAuth();
   }, []);
 
   const loginUser = (userData) => {
     setUser(userData);
+    setIsAuthenticated(true);
   };
 
   const logoutUser = () => {
     logout();
     setUser(null);
+    setIsAuthenticated(false);
+    navigate('/login', { replace: true });
   };
 
-  const isAdmin = () => {
-    return user?.role === 'admin';
+  const value = {
+    user,
+    isAuthenticated,
+    loading,
+    loginUser,
+    logoutUser
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, loginUser, logoutUser, isAdmin }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

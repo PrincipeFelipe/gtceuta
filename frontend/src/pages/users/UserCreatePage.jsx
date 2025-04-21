@@ -13,7 +13,8 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
-  Stack
+  Stack,
+  FormHelperText
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useFormik } from 'formik';
@@ -21,12 +22,7 @@ import * as yup from 'yup';
 import AdminLayout from '../../layouts/AdminLayout';
 import api from '../../services/api';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { styled } from '@mui/material/styles';
-
-const StyledPaper = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(3),
-  backgroundColor: theme.palette.background.paper,
-}));
+import SaveIcon from '@mui/icons-material/Save';
 
 const validationSchema = yup.object({
   username: yup
@@ -72,7 +68,11 @@ const UserCreatePage = () => {
         await api.post('/users/register/', values);
         navigate('/users');
       } catch (err) {
-        setError(err.response?.data?.detail || 'Ha ocurrido un error al crear el usuario');
+        const errorMessage = err.response?.data?.detail || 
+                            (err.response?.data?.username && `Username: ${err.response.data.username[0]}`) || 
+                            (err.response?.data?.email && `Email: ${err.response.data.email[0]}`) || 
+                            'Ha ocurrido un error al crear el usuario';
+        setError(errorMessage);
         console.error('Error al crear el usuario:', err);
       } finally {
         setLoading(false);
@@ -87,6 +87,7 @@ const UserCreatePage = () => {
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate('/users')}
           sx={{ mb: 2 }}
+          color="inherit"
         >
           Volver a usuarios
         </Button>
@@ -95,7 +96,7 @@ const UserCreatePage = () => {
         </Typography>
       </Box>
 
-      <StyledPaper>
+      <Paper sx={{ p: 3, backgroundColor: 'background.paper' }}>
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
@@ -112,9 +113,9 @@ const UserCreatePage = () => {
                 label="Nombre de usuario"
                 value={formik.values.username}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 error={formik.touched.username && Boolean(formik.errors.username)}
                 helperText={formik.touched.username && formik.errors.username}
-                variant="outlined"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -126,9 +127,9 @@ const UserCreatePage = () => {
                 type="email"
                 value={formik.values.email}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 error={formik.touched.email && Boolean(formik.errors.email)}
                 helperText={formik.touched.email && formik.errors.email}
-                variant="outlined"
               />
             </Grid>
             <Grid item xs={12}>
@@ -140,9 +141,9 @@ const UserCreatePage = () => {
                 type="password"
                 value={formik.values.password}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 error={formik.touched.password && Boolean(formik.errors.password)}
                 helperText={formik.touched.password && formik.errors.password}
-                variant="outlined"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -153,9 +154,9 @@ const UserCreatePage = () => {
                 label="Nombre"
                 value={formik.values.first_name}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 error={formik.touched.first_name && Boolean(formik.errors.first_name)}
                 helperText={formik.touched.first_name && formik.errors.first_name}
-                variant="outlined"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -166,13 +167,16 @@ const UserCreatePage = () => {
                 label="Apellidos"
                 value={formik.values.last_name}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 error={formik.touched.last_name && Boolean(formik.errors.last_name)}
                 helperText={formik.touched.last_name && formik.errors.last_name}
-                variant="outlined"
               />
             </Grid>
             <Grid item xs={12}>
-              <FormControl fullWidth>
+              <FormControl 
+                fullWidth
+                error={formik.touched.role && Boolean(formik.errors.role)}
+              >
                 <InputLabel id="role-label">Rol</InputLabel>
                 <Select
                   labelId="role-label"
@@ -181,36 +185,40 @@ const UserCreatePage = () => {
                   value={formik.values.role}
                   label="Rol"
                   onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                 >
                   <MenuItem value="admin">Administrador</MenuItem>
                   <MenuItem value="editor">Editor</MenuItem>
                   <MenuItem value="user">Usuario</MenuItem>
                 </Select>
+                {formik.touched.role && formik.errors.role && (
+                  <FormHelperText>{formik.errors.role}</FormHelperText>
+                )}
               </FormControl>
             </Grid>
-            <Grid item xs={12} sx={{ mt: 2 }}>
-              <Stack direction="row" spacing={2} justifyContent="flex-end">
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  onClick={() => navigate('/users')}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  variant="contained"
-                  type="submit"
-                  disabled={loading}
-                  startIcon={loading ? <CircularProgress size={20} /> : null}
-                  disableElevation
-                >
-                  {loading ? 'Guardando...' : 'Guardar'}
-                </Button>
-              </Stack>
-            </Grid>
           </Grid>
+
+          <Stack direction="row" spacing={2} sx={{ mt: 4 }} justifyContent="flex-end">
+            <Button
+              variant="outlined"
+              color="inherit"
+              onClick={() => navigate('/users')}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              type="submit"
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+              disableElevation
+            >
+              {loading ? 'Guardando...' : 'Guardar Usuario'}
+            </Button>
+          </Stack>
         </Box>
-      </StyledPaper>
+      </Paper>
     </AdminLayout>
   );
 };

@@ -1,11 +1,10 @@
-// src/services/api.js
 import axios from 'axios';
 import { getToken, removeToken } from '../utils/tokenUtils';
 
-const baseURL = 'http://localhost:8000/api/';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 const api = axios.create({
-  baseURL,
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -16,7 +15,7 @@ api.interceptors.request.use(
   (config) => {
     const token = getToken();
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -27,9 +26,13 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      removeToken();
-      window.location.href = '/login';
+    // Si el token expiró (401) o no tiene permisos (403)
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      // Solo redirigimos y limpiamos tokens si no estamos en la página de login
+      if (window.location.pathname !== '/login') {
+        removeToken();
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
