@@ -96,7 +96,14 @@ const UserEditPage = () => {
       setSaving(true);
       setError(null);
       try {
-        await api.put(`/users/${id}/`, values);
+        // Asegurar que el rol se envía en el formato correcto
+        const dataToSend = {
+          ...values,
+          profile: {
+            role: values.role
+          }
+        };
+        await api.put(`/users/${id}/`, dataToSend);
         navigate('/users');
       } catch (err) {
         const errorMessage = err.response?.data?.detail || 
