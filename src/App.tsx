@@ -24,6 +24,9 @@ import AdminBlogPage from './pages/admin/AdminBlogPage';
 import AdminSponsorsPage from './pages/admin/AdminSponsorsPage';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage';
 import BlogForm from './components/admin/BlogForm';
+import BlogAdmin from './components/admin/BlogAdmin';
+import NewBlogPostPage from './pages/admin/NewBlogPostPage';
+import EditBlogPostPage from './pages/admin/EditBlogPostPage';
 // Otras importaciones...
 import SobreElTorneoPage from './pages/SobreElTorneoPage';
 import ReglasPage from './pages/ReglasPage';
@@ -599,9 +602,9 @@ function App() {
       
       {/* Rutas de administración */}
       <Route path="/admin" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
-      <Route path="/admin/blog" element={<ProtectedRoute><AdminBlogPage /></ProtectedRoute>} />
-      <Route path="/admin/blog/new" element={<ProtectedRoute><BlogForm /></ProtectedRoute>} />
-      <Route path="/admin/blog/edit/:id" element={<ProtectedRoute><BlogForm /></ProtectedRoute>} />
+      <Route path="/admin/blog" element={<ProtectedRoute><BlogAdmin /></ProtectedRoute>} />
+      <Route path="/admin/blog/new" element={<ProtectedRoute><NewBlogPostPage /></ProtectedRoute>} />
+      <Route path="/admin/blog/edit/:id" element={<ProtectedRoute><EditBlogPostPage /></ProtectedRoute>} />
       <Route path="/admin/sponsors" element={<ProtectedRoute><AdminSponsorsPage /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute><AdminSettingsPage /></ProtectedRoute>} />
       

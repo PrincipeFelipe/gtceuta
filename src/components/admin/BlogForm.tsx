@@ -1,831 +1,530 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import blogService, { BlogPost } from '../../services/BlogService';
-import { Save, X, Image, Calendar, Eye, Code } from 'lucide-react';
-import AdminLayout from './AdminLayout';
-import ImageEditor from './ImageEditor';
-import TiptapEditor, { TiptapEditorRef } from './TiptapEditor';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
+import { ArrowLeft, Save, Image as ImageIcon, Trash2 } from "lucide-react";
+import { toast, Toaster } from "react-hot-toast";
+import AdminLayout from "./AdminLayout";
+import blogService, { BlogPost } from "../../services/BlogService";
+import { useAuth } from "../../contexts/AuthContext";
+import SmartImage from "../ui/SmartImage";
+
+// Reemplazar ReactQuill por TipTap
+import Tiptap, { TiptapEditorRef } from "../common/Tiptap";
+// Importar estilos necesarios
 import '../../styles/tiptap.css';
-import { normalizeImageUrl } from '../../utils/imageUtils';
-import { API_URL } from '../../config/api';
-import SmartImage from '../ui/SmartImage';
 
-const categories = [
-  { id: 'guias', name: 'Guías y tutoriales' },
-  { id: 'torneos', name: 'Torneos' },
-  { id: 'ceuta', name: 'Ceuta' },
-  { id: 'estrategia', name: 'Estrategia' }
-];
-
-const formatDateForInput = (dateString: string | Date): string => {
-  if (!dateString) return '';
-  
-  const date = new Date(dateString);
-  
-  if (isNaN(date.getTime())) return '';
-  
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  
-  return `${year}-${month}-${day}`;
-};
-
-// Añadir esta utilidad para diagnóstico de URLs
-
-const DiagnosticImage = ({ url }: { url: string }) => {
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [normalizedUrl, setNormalizedUrl] = useState<string | null>(null);
-  
-  useEffect(() => {
-    if (!url) return;
-    
-    // Normalizar la URL para prueba
-    const normalizedForTest = url.startsWith('/') 
-      ? `${window.location.origin}${url}` 
-      : url;
-    setNormalizedUrl(normalizedForTest);
-    
-    const img = new Image();
-    img.onload = () => setStatus('success');
-    img.onerror = () => setStatus('error');
-    img.src = normalizedForTest;
-  }, [url]);
-  
-  return (
-    <div className="bg-gray-800 p-3 rounded-lg mb-4">
-      <div className="mb-2 text-sm">
-        <span className="text-gray-400">URL original: </span>
-        <span className="text-gray-300 break-all">{url}</span>
-      </div>
-      
-      {normalizedUrl && (
-        <div className="mb-2 text-sm">
-          <span className="text-gray-400">URL para prueba: </span>
-          <span className="text-gray-300 break-all">{normalizedUrl}</span>
-        </div>
-      )}
-      
-      <div className="flex items-center gap-2">
-        <div className={`w-3 h-3 rounded-full ${
-          status === 'loading' ? 'bg-yellow-500' :
-          status === 'success' ? 'bg-green-500' :
-          'bg-red-500'
-        }`}></div>
-        <span className="text-sm">
-          {status === 'loading' ? 'Cargando...' :
-           status === 'success' ? 'Accesible ✅' :
-           'Inaccesible ❌'}
-        </span>
-      </div>
-    </div>
-  );
-};
+// Tipos para el formulario
+type FormStatus = 'idle' | 'loading' | 'submitting' | 'success' | 'error';
 
 const BlogForm: React.FC = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  // Cambiar el tipo de referencia para adaptarse a TipTap
+  const editorRef = useRef<TiptapEditorRef>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [loading, setLoading] = useState<boolean>(false);
-  const [saving, setSaving] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  const [formData, setFormData] = useState<Omit<BlogPost, 'id'>>({
-    title: '',
-    slug: '',
-    excerpt: '',
-    content: '',
-    image: '/images/blog/default-post.jpg',
+  // Estado para el formulario
+  const [post, setPost] = useState<BlogPost>({
+    title: "",
+    slug: "",
+    excerpt: "",
+    content: "",
     date: new Date().toISOString().split('T')[0],
-    category: 'guias',
-    published: false
+    category: "",
+    tags: "",
+    published: false,
+    featured: false,
+    meta_description: ""
   });
-
-  const [showHtml, setShowHtml] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-
-  const [imageEditorState, setImageEditorState] = useState<{
-    open: boolean;
-    src: string | null;
-    callback: ((url: string) => void) | null;
-  }>({
-    open: false,
-    src: null,
-    callback: null
-  });
-
-  const tiptapRef = useRef<TiptapEditorRef>(null);
-  const [trackingImages, setTrackingImages] = useState<Set<string>>(new Set());
-
-  const preprocessHtmlForTiptap = (html: string): string => {
-    if (!html) return '';
-    
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    
-    const images = tempDiv.querySelectorAll('img');
-    images.forEach(img => {
-      if (img.src) {
-        img.setAttribute('data-tiptap-image', 'true');
-      }
-    });
-    
-    console.log("HTML procesado para Tiptap:", tempDiv.innerHTML.substring(0, 100) + "...");
-    return tempDiv.innerHTML;
-  };
-
-  const checkImagesInContent = (html: string) => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    const images = tempDiv.querySelectorAll('img');
-    console.log(`Encontradas ${images.length} imágenes en el contenido:`);
-    
-    const imagesToLoad = images.length;
-    let loadedImages = 0;
-    let errorImages = 0;
-    
-    images.forEach((img, index) => {
-      const originalSrc = img.src;
-      let normalizedSrc = originalSrc.replace(/\\/g, '/');
-      
-      console.log(`${index + 1}. src original: ${originalSrc}`);
-      
-      if (normalizedSrc !== originalSrc) {
-        console.log(`   src normalizada: ${normalizedSrc}`);
-      }
-      
-      const testImg = document.createElement('img');
-      
-      testImg.onload = () => {
-        loadedImages++;
-        console.log(`✅ Imagen ${index + 1} cargada correctamente (${loadedImages}/${imagesToLoad})`);
-      };
-      
-      testImg.onerror = (e) => {
-        errorImages++;
-        console.error(`❌ Error al cargar la imagen ${index + 1}:`, e);
-        console.error(`   URL problemática: ${testImg.src}`);
-        
-        try {
-          const urlStr = testImg.src;
-          if (urlStr.includes('http://localhost:4000http://')) {
-            const fixedUrl = urlStr.replace('http://localhost:4000http://', 'http://');
-            console.log(`   - URL corregida: ${fixedUrl}`);
-            
-            const fixImg = new Image();
-            fixImg.onload = () => console.log(`   ✅ La imagen carga correctamente con la URL corregida`);
-            fixImg.onerror = () => console.log(`   ❌ La imagen sigue sin cargar con la URL corregida`);
-            fixImg.src = fixedUrl;
-          } else {
-            const urlObj = new URL(urlStr);
-            console.log(`   - Protocolo: ${urlObj.protocol}`);
-            console.log(`   - Host: ${urlObj.host}`);
-            console.log(`   - Pathname: ${urlObj.pathname}`);
-          }
-        } catch (urlError) {
-          console.error(`   - No se pudo analizar la URL: ${urlError.message}`);
-          
-          const badUrl = testImg.src;
-          if (badUrl.includes('localhost:4000') && badUrl.includes('/uploads/')) {
-            const parts = badUrl.split('/uploads/');
-            if (parts.length > 1) {
-              const correctedUrl = `${window.location.origin}/uploads/${parts[parts.length - 1]}`;
-              console.log(`   - Intento de corrección: ${correctedUrl}`);
-            }
-          }
-        }
-      };
-      
-      testImg.src = normalizedSrc;
-    });
-  };
-
+  
+  const [status, setStatus] = useState<FormStatus>('idle');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [localImage, setLocalImage] = useState<File | null>(null);
+  const [contentImages, setContentImages] = useState<File[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
+  
+  // Efecto para cargar el post si estamos en modo edición
   useEffect(() => {
-    const loadPost = async () => {
-      if (id) {
-        setLoading(true);
-        try {
-          const post = await blogService.getPostById(Number(id));
-          if (post) {
-            console.log("Post cargado:", post.title);
-            console.log("Contenido HTML recibido:", post.content ? post.content.length : 0, "caracteres");
-            
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = post.content || '';
-            const images = tempDiv.querySelectorAll('img');
-            console.log("Imágenes encontradas en el HTML:", images.length);
-            
-            images.forEach((img, index) => {
-              console.log(`Imagen ${index + 1}:`, img.src.substring(0, 50) + "...");
-            });
-            
-            const processedContent = preprocessHtmlForTiptap(post.content || '');
-            
-            setFormData({
-              title: post.title || '',
-              slug: post.slug || '',
-              excerpt: post.excerpt || '',
-              content: processedContent,
-              image: post.image || '/images/blog/default-post.jpg',
-              date: formatDateForInput(post.date || new Date().toISOString().split('T')[0]),
-              category: post.category || 'guias',
-              published: post.published || false
-            });
-          } else {
-            setError("Post no encontrado");
-            navigate("/admin/blog");
-          }
-        } catch (err) {
-          console.error("Error al cargar el post:", err);
-          setError(`Error al cargar el post: ${err instanceof Error ? err.message : 'Error desconocido'}`);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadPost();
-  }, [id, navigate]);
-
-  const generateSlug = (title: string) => {
-    return title
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^\w\s]/gi, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
-  };
-
-  const normalizeContentImageUrls = (html: string): string => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    
-    const images = tempDiv.querySelectorAll('img');
-    let modified = false;
-    
-    images.forEach(img => {
-      const originalSrc = img.getAttribute('src') || '';
+    if (id) {
+      loadPost(parseInt(id));
+    } else {
+      // Si es un nuevo post, asignar fecha actual
+      setPost(prev => ({ 
+        ...prev, 
+        date: new Date().toISOString().split('T')[0]
+      }));
+    }
+  }, [id]);
+  
+  // Cargar post existente
+  const loadPost = async (postId: number) => {
+    try {
+      setStatus('loading');
+      const data = await blogService.getPostById(postId);
+      setPost(data);
       
-      if (originalSrc.includes('\\')) {
-        const normalizedSrc = originalSrc.replace(/\\/g, '/');
-        img.setAttribute('src', normalizedSrc);
-        modified = true;
-        console.log(`URL de imagen normalizada: ${originalSrc} -> ${normalizedSrc}`);
-      }
-    });
-    
-    return modified ? tempDiv.innerHTML : html;
-  };
-
-  const normalizeAndTrackImages = (html: string): string => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    
-    const images = tempDiv.querySelectorAll('img');
-    const currentImages = new Set<string>();
-    
-    images.forEach(img => {
-      const src = img.getAttribute('src') || '';
-      if (src && src.includes('/uploads/')) {
-        currentImages.add(src);
+      // Si hay una imagen, establecer la vista previa
+      if (data.image_url) {
+        setImagePreview(data.image_url);
+      } else if (typeof data.image === 'string') {
+        setImagePreview(data.image);
       }
       
-      if (src.includes('\\')) {
-        const normalizedSrc = src.replace(/\\/g, '/');
-        img.setAttribute('src', normalizedSrc);
-      }
-    });
+      setStatus('idle');
+    } catch (error) {
+      console.error("Error al cargar el post:", error);
+      toast.error("Error al cargar el post");
+      setStatus('error');
+    }
+  };
+  
+  // Manejar cambios en los campos del formulario
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target as HTMLInputElement;
     
-    if (trackingImages.size > 0) {
-      trackingImages.forEach(oldImageUrl => {
-        if (!currentImages.has(oldImageUrl) && oldImageUrl.includes('/uploads/')) {
-          console.log('Imagen eliminada del contenido:', oldImageUrl);
-          deleteImageFromServer(oldImageUrl);
-        }
-      });
+    // Manejar checkbox
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setPost(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setPost(prev => ({ ...prev, [name]: value }));
     }
     
-    setTrackingImages(currentImages);
-    
-    return tempDiv.innerHTML;
+    setIsDirty(true);
   };
-
-  const handleChange = (field: keyof Omit<BlogPost, 'id'>, value: any) => {
-    setFormData(prev => {
-      let updatedValue = value;
+  
+  // Manejar cambios en el editor de contenido - Memoizado para evitar recreaciones
+  const handleContentChange = useCallback((content: string) => {
+    setPost(prev => {
+      // Solo actualizar si el contenido realmente cambió
+      if (prev.content === content) return prev;
       
-      if (field === 'content') {
-        updatedValue = normalizeAndTrackImages(value);
-      }
+      // Marcar como sucio solo si realmente cambió
+      if (!isDirty) setIsDirty(true);
       
-      const updated = { ...prev, [field]: updatedValue };
-      
-      if (field === 'title') {
-        updated.slug = generateSlug(value);
-      }
-      
-      return updated;
+      // Devolver el nuevo estado
+      return { ...prev, content };
     });
+  }, [isDirty]);
+  
+  // Generar slug automáticamente desde el título
+  const generateSlug = () => {
+    if (!post.title) return;
+    
+    const slug = post.title
+      .toLowerCase()
+      .replace(/[áàäâãåā]/g, 'a')
+      .replace(/[éèëêēė]/g, 'e')
+      .replace(/[íìïîī]/g, 'i')
+      .replace(/[óòöôõō]/g, 'o')
+      .replace(/[úùüûū]/g, 'u')
+      .replace(/[ñ]/g, 'n')
+      .replace(/[çc]/g, 'c')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    
+    setPost(prev => ({ ...prev, slug }));
   };
-
+  
+  // Efecto para generar slug cuando cambia el título
+  useEffect(() => {
+    if (!post.slug || post.slug === '') {
+      generateSlug();
+    }
+  }, [post.title]);
+  
+  // Manejar selección de imagen principal
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      setLocalImage(file);
+      setIsDirty(true);
+    }
+  };
+  
+  // Eliminar imagen principal
+  const handleRemoveImage = () => {
+    setImagePreview(null);
+    setLocalImage(null);
+    setPost(prev => ({ ...prev, image: null }));
+    setIsDirty(true);
+  };
+  
+  // Función para subir una imagen al servidor y obtener la URL
+  const uploadImageToServer = async (file: File): Promise<string> => {
+    try {
+      return await blogService.uploadContentImage(id ? parseInt(id) : null, file);
+    } catch (error) {
+      console.error("Error al subir imagen:", error);
+      toast.error("Error al subir imagen");
+      throw error;
+    }
+  };
+  
+  // Enviar el formulario
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-    setError(null);
-
+    
     try {
-      const postToSubmit = {
-        ...formData,
-        date: formData.date ? new Date(formData.date).toISOString() : new Date().toISOString()
-      };
-
+      setStatus('submitting');
+      
+      // Validación básica
+      if (!post.title) {
+        toast.error("El título es obligatorio");
+        setStatus('idle');
+        return;
+      }
+      
+      // Preparar datos del post
+      const postData: BlogPost = { ...post };
+      
+      // Si hay una imagen local, adjuntarla
+      if (localImage) {
+        postData.image = localImage;
+      }
+      
+      if (contentImages.length > 0) {
+        postData.content_images = contentImages;
+      }
+      
+      // Si el usuario actual no está en el post, añadirlo
+      if (!postData.author && user?.id) {
+        postData.author = user.id;
+      }
+      
+      let savedPost;
+      
       if (id) {
-        await blogService.updatePost({
-          ...postToSubmit,
-          id: Number(id)
-        } as BlogPost);
+        // Actualizar post existente
+        savedPost = await blogService.updatePost(postData);
+        toast.success("Post actualizado correctamente");
       } else {
-        await blogService.addPost(postToSubmit);
+        // Crear nuevo post
+        savedPost = await blogService.addPost(postData);
+        toast.success("Post creado correctamente");
       }
-      navigate('/admin/blog');
-    } catch (err) {
-      setError('Error al guardar el post');
-      console.error(err);
-    } finally {
-      setSaving(false);
+      
+      setStatus('success');
+      setIsDirty(false);
+      
+      // Redirigir a la edición si es un post nuevo
+      if (!id && savedPost.id) {
+        navigate(`/admin/blog/edit/${savedPost.id}`, { replace: true });
+      }
+    } catch (error) {
+      console.error("Error al guardar el post:", error);
+      toast.error("Error al guardar el post");
+      setStatus('error');
     }
   };
-
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
   
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      
-      reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        
-        const response = await fetch(`${API_URL}/upload/blog-image`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ image: base64 })
-        });
-        
-        if (!response.ok) {
-          throw new Error('Error al subir la imagen');
-        }
-        
-        const data = await response.json();
-        handleChange('image', data.url);
-      };
-    } catch (error) {
-      console.error('Error al subir imagen:', error);
-      alert('Error al subir la imagen. Inténtalo de nuevo.');
-    }
-  };
-
-  const handleContentImage = (file: File) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    
-    reader.onloadend = () => {
-      setImageEditorState({
-        open: true,
-        src: reader.result as string,
-        callback: (editedImageUrl) => {
-          console.log("Imagen editada con URL:", editedImageUrl);
-          
-          // No modificar la URL en absoluto, solo usarla tal cual
-          if (tiptapRef.current) {
-            tiptapRef.current.insertImage(editedImageUrl);
-            
-            setTimeout(() => {
-              if (tiptapRef.current?.editor) {
-                const html = tiptapRef.current.editor.getHTML();
-                handleChange('content', html);
-              }
-            }, 100);
-          }
-          
-          setImageEditorState({
-            open: false,
-            src: null,
-            callback: null
-          });
-        }
-      });
-    };
-  };
-
-  const renderImagePreview = () => {
-    if (!formData.image) {
-      return (
-        <div className="flex items-center justify-center h-40 bg-gray-700 rounded-lg border-2 border-dashed border-gray-500">
-          <span className="text-gray-400">Sin imagen</span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="relative h-40 bg-gray-700 rounded-lg overflow-hidden">
-        <SmartImage 
-          src={formData.image}
-          alt="Vista previa" 
-          className="w-full h-full object-cover"
-          fallbackSrc="/images/blog/default-post.jpg"
-        />
-        <button 
-          type="button"
-          onClick={handleRemoveFeaturedImage}
-          className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 transition-colors"
-          aria-label="Eliminar imagen"
-        >
-          <X size={16} />
-        </button>
-      </div>
-    );
-  };
-
-  const TestImageComponent = () => {
-    const [imagePath, setImagePath] = useState('');
-    const [testResult, setTestResult] = useState<string | null>(null);
-    const [urlVariants, setUrlVariants] = useState<string[]>([]);
-    
-    // Añadir URL de prueba automática si existe una URL reciente
-    useEffect(() => {
-      if (formData.image && formData.image !== '/images/blog/default-post.jpg') {
-        setImagePath(formData.image);
+  // Verificar cambios antes de salir
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
       }
-    }, [formData.image]);
-    
-    const testImage = () => {
-      if (!imagePath) return;
-      
-      setTestResult('⏳ Probando acceso a la imagen...');
-      
-      // Generar variantes de la URL para probar
-      const variants: string[] = [imagePath];
-      
-      // Variante 1: Si es localhost:4000, reemplazar con origen actual
-      if (imagePath.includes('localhost:4000')) {
-        variants.push(imagePath.replace('http://localhost:4000', window.location.origin));
-      }
-      
-      // Variante 2: Si es relativa, convertir a absoluta
-      if (imagePath.startsWith('/')) {
-        variants.push(`${window.location.origin}${imagePath}`);
-      }
-      
-      // Variante 3: Si tiene URL doble, extraer la segunda
-      if (imagePath.includes('http://') && imagePath.indexOf('http://') !== imagePath.lastIndexOf('http://')) {
-        const lastHttpIndex = imagePath.lastIndexOf('http://');
-        variants.push(imagePath.substring(lastHttpIndex));
-      }
-      
-      // Variante 4: Para URLs absolutas, extraer la parte relativa
-      const uploadsMatch = imagePath.match(/^.*?(\/uploads\/.*?)$/);
-      if (uploadsMatch && uploadsMatch[1]) {
-        variants.push(uploadsMatch[1]);
-        variants.push(`${window.location.origin}${uploadsMatch[1]}`);
-      }
-      
-      setUrlVariants(variants);
-      
-      // Probar la URL original
-      const img = new Image();
-      img.onload = () => {
-        setTestResult(`✅ La imagen cargó correctamente: ${imagePath}`);
-        console.log('Imagen cargada correctamente:', img.width, 'x', img.height);
-      };
-      
-      img.onerror = () => {
-        setTestResult(`❌ Error al cargar la imagen: ${imagePath}`);
-        console.error('Error al cargar imagen:', imagePath);
-      };
-      
-      img.src = imagePath;
     };
     
-    return (
-      <div className="mb-6 p-4 bg-gray-800 rounded-lg">
-        <h3 className="font-bold text-white mb-2">Prueba de acceso a imágenes</h3>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            value={imagePath}
-            onChange={(e) => setImagePath(e.target.value)}
-            className="flex-1 p-2 rounded-lg bg-gray-700 border border-gray-600 text-white"
-            placeholder="Pega la URL de la imagen a probar"
-          />
-          <button
-            type="button"
-            onClick={testImage}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
-          >
-            Probar
-          </button>
-        </div>
-        
-        {testResult && (
-          <div className={`mt-2 p-2 rounded ${testResult.startsWith('✅') ? 'bg-green-900/50' : 'bg-red-900/50'}`}>
-            {testResult}
-          </div>
-        )}
-        
-        {urlVariants.length > 0 && (
-          <div className="mt-4">
-            <h4 className="text-white text-sm font-bold mb-2">Variantes de URL probadas:</h4>
-            <div className="space-y-2">
-              {urlVariants.map((url, index) => (
-                <DiagnosticImage key={index} url={url} />
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {imagePath && (
-          <div className="mt-2">
-            <p className="text-sm text-gray-400 mb-1">Vista previa:</p>
-            <SmartImage 
-              src={imagePath} 
-              alt="Test" 
-              className="max-h-32 border border-gray-700 rounded"
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const deleteImageFromServer = async (imageUrl: string) => {
-    console.log("Intentando eliminar imagen:", imageUrl);
-    
-    try {
-      const response = await fetch(`${API_URL}/delete-image`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ imageUrl })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.error('Error al eliminar la imagen:', data.message || response.statusText);
-        return false;
-      } else {
-        console.log('Imagen eliminada correctamente:', data.message);
-        return true;
-      }
-    } catch (error) {
-      console.error('Error en la petición para eliminar imagen:', error);
-      return false;
-    }
-  };
-
-  const handleRemoveFeaturedImage = () => {
-    const currentImageUrl = formData.image;
-    
-    setFormData(prev => ({ ...prev, image: '' }));
-    
-    if (currentImageUrl && !currentImageUrl.includes('default-post.jpg')) {
-      deleteImageFromServer(currentImageUrl);
-    }
-  };
-
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isDirty]);
+  
   return (
     <AdminLayout>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-white mb-8">
-          {id ? 'Editar Post' : 'Crear Nuevo Post'}
-        </h1>
+        <Helmet>
+          <title>{id ? 'Editar Post' : 'Nuevo Post'} - GT Ceuta Admin</title>
+        </Helmet>
         
-        {error && (
-          <div className="bg-red-900/50 border border-red-500 text-white p-4 rounded-lg mb-6">
-            <p className="flex items-center">
-              <span className="mr-2">⚠️</span> {error}
-            </p>
-          </div>
-        )}
-
-        <TestImageComponent />
+        <Toaster position="top-right" />
         
-        {loading ? (
-          <div className="flex justify-center my-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+        {/* Cabecera con título y botones */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+          <div className="flex items-center">
+            <button 
+              onClick={() => navigate('/admin/blog')}
+              className="mr-4 p-2 text-gray-300 hover:text-white transition-colors"
+              title="Volver"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <h1 className="text-3xl font-bold text-white">{id ? 'Editar Post' : 'Nuevo Post'}</h1>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-6 bg-gray-800 p-6 rounded-lg shadow-lg">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="block text-gray-300">Título</label>
+          
+          <div className="mt-4 sm:mt-0">
+            <button
+              onClick={handleSubmit}
+              disabled={status === 'submitting'}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                status === 'submitting' 
+                  ? 'bg-gray-600 cursor-not-allowed' 
+                  : 'bg-green-600 hover:bg-green-700'
+              } text-white`}
+            >
+              {status === 'submitting' ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                  <span>Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  <span>Guardar</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        
+        {/* Formulario */}
+        <form onSubmit={handleSubmit} className="bg-gray-800 rounded-lg shadow-lg p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Columna izquierda - Datos principales */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Título */}
+              <div>
+                <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-2">
+                  Título <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
-                  value={formData.title}
-                  onChange={(e) => handleChange('title', e.target.value)}
-                  className="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+                  id="title"
+                  name="title"
+                  value={post.title}
+                  onChange={handleChange}
                   required
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white"
+                  placeholder="Título del post"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="block text-gray-300">URL amigable (slug)</label>
-                <input
-                  type="text"
-                  value={formData.slug}
-                  onChange={(e) => handleChange('slug', e.target.value)}
-                  className="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-                  required
+              
+              {/* Slug */}
+              <div>
+                <label htmlFor="slug" className="block text-sm font-medium text-gray-300 mb-2">
+                  Slug / URL <span className="text-red-500">*</span>
+                </label>
+                <div className="flex">
+                  <input
+                    type="text"
+                    id="slug"
+                    name="slug"
+                    value={post.slug}
+                    onChange={handleChange}
+                    required
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white"
+                    placeholder="url-amigable"
+                  />
+                  <button
+                    type="button"
+                    onClick={generateSlug}
+                    className="ml-2 px-3 bg-gray-600 text-white rounded-lg hover:bg-gray-500"
+                    title="Generar desde título"
+                  >
+                    Generar
+                  </button>
+                </div>
+              </div>
+              
+              {/* Extracto */}
+              <div>
+                <label htmlFor="excerpt" className="block text-sm font-medium text-gray-300 mb-2">
+                  Extracto
+                </label>
+                <textarea
+                  id="excerpt"
+                  name="excerpt"
+                  value={post.excerpt || ''}
+                  onChange={handleChange}
+                  rows={3}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white"
+                  placeholder="Breve resumen del post (se mostrará en listados)"
                 />
-                <p className="text-xs text-gray-400">
-                  El slug se usa para la URL: gtceuta.com/blog/tu-slug
+              </div>
+              
+              {/* Contenido - Reemplazado ReactQuill por TipTap */}
+              <div>
+                <label htmlFor="content" className="block text-sm font-medium text-gray-300 mb-2">
+                  Contenido <span className="text-red-500">*</span>
+                </label>
+                <div className="rounded-lg text-white">
+                  <Tiptap
+                    ref={editorRef}
+                    value={post.content}
+                    onChange={handleContentChange}
+                    placeholder="Escribe aquí el contenido del post..."
+                    autofocus={false}
+                    uploadImage={uploadImageToServer}
+                    // Asegurar un id único para evitar problemas de renderizado
+                    key={`editor-${id || 'new'}-${Date.now()}`}
+                  />
+                </div>
+              </div>
+              
+              {/* Meta descripción */}
+              <div>
+                <label htmlFor="meta_description" className="block text-sm font-medium text-gray-300 mb-2">
+                  Meta Descripción (SEO)
+                </label>
+                <textarea
+                  id="meta_description"
+                  name="meta_description"
+                  value={post.meta_description || ''}
+                  onChange={handleChange}
+                  rows={2}
+                  maxLength={160}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white"
+                  placeholder="Descripción SEO (máx 160 caracteres)"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {(post.meta_description?.length || 0)}/160 caracteres
                 </p>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="flex items-center text-gray-300 gap-1">
-                  <Calendar size={16} />
-                  <span>Fecha</span>
+            
+            {/* Columna derecha - Configuración */}
+            <div className="space-y-6">
+              {/* Imagen principal */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Imagen Principal
+                </label>
+                {imagePreview ? (
+                  <div className="relative bg-gray-700 p-2 rounded-lg">
+                    <div className="relative aspect-[16/9] overflow-hidden rounded">
+                      <SmartImage 
+                        src={imagePreview}
+                        alt="Vista previa"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-4 right-4 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full"
+                      title="Eliminar imagen"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="block w-full aspect-[16/9] cursor-pointer bg-gray-700 rounded-lg border-2 border-dashed border-gray-600 hover:border-red-500 transition-colors text-gray-300 hover:text-white">
+                    <div className="flex flex-col items-center justify-center h-full">
+                      <ImageIcon size={36} className="mb-2" />
+                      <span className="text-sm">Haz clic para subir una imagen</span>
+                      <span className="text-xs text-gray-400 mt-1">JPG, PNG, WebP (máx 2MB)</span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+              
+              {/* El resto del formulario sigue igual */}
+              <div>
+                <label htmlFor="date" className="block text-sm font-medium text-gray-300 mb-2">
+                  Fecha
                 </label>
                 <input
                   type="date"
-                  value={formData.date}
-                  onChange={(e) => handleChange('date', e.target.value)}
-                  className="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-                  required
+                  id="date"
+                  name="date"
+                  value={post.date?.split('T')[0] || new Date().toISOString().split('T')[0]}
+                  onChange={handleChange}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="block text-gray-300">Categoría</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => handleChange('category', e.target.value)}
-                  className="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-                >
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-gray-300">Extracto</label>
-              <textarea
-                value={formData.excerpt}
-                onChange={(e) => handleChange('excerpt', e.target.value)}
-                className="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-                rows={3}
-                required
-              ></textarea>
-            </div>
-
-            <div className="space-y-2">
-              <label className="flex items-center text-gray-300 gap-1">
-                <Image size={16} />
-                <span>Imagen destacada</span>
-              </label>
               
-              <div className="flex items-center gap-4">
-                {renderImagePreview()}
-                <div className="flex-1">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="block w-full text-sm text-gray-300
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-lg file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-red-600 file:text-white
-                      hover:file:bg-red-700"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    O ingresa la URL de una imagen existente:
-                  </p>
-                  <input
-                    type="text"
-                    value={typeof formData.image === 'string' ? formData.image : ''}
-                    onChange={(e) => handleChange('image', e.target.value)}
-                    className="w-full p-2 mt-1 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-                    placeholder="/images/blog/mi-imagen.jpg"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-gray-300">Contenido</label>
-              <TiptapEditor 
-                ref={tiptapRef}
-                value={formData.content}
-                onChange={(content) => {
-                  handleChange('content', content);
-                  checkImagesInContent(content);
-                }}
-                onImageSelect={handleContentImage}
-              />
-              
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={() => setShowHtml(!showHtml)}
-                  className="flex items-center text-sm text-gray-400 hover:text-white"
-                >
-                  <Code size={16} className="mr-1" />
-                  {showHtml ? 'Ocultar HTML' : 'Ver HTML'}
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="flex items-center text-sm text-gray-400 hover:text-white"
-                >
-                  <Eye size={16} className="mr-1" />
-                  {showPreview ? 'Ocultar vista previa' : 'Ver vista previa'}
-                </button>
-              </div>
-
-              {showHtml && (
-                <div className="mt-2 p-4 bg-gray-800 rounded-lg overflow-auto max-h-60">
-                  <pre className="text-xs text-gray-300">{formData.content}</pre>
-                </div>
-              )}
-              
-              {showPreview && formData.content && (
-                <div className="mt-4 border border-gray-700 rounded-lg">
-                  <div className="bg-gray-800 px-4 py-2 rounded-t-lg border-b border-gray-700">
-                    <h3 className="text-sm font-medium text-gray-300">Vista previa del contenido</h3>
-                  </div>
-                  <div 
-                    className="p-4 blog-content-preview"
-                    dangerouslySetInnerHTML={{ __html: formData.content }}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="publishStatus"
-                  checked={formData.published}
-                  onChange={(e) => handleChange('published', e.target.checked)}
-                  className="w-4 h-4 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500"
-                />
-                <label htmlFor="publishStatus" className="ml-2 text-gray-300">
-                  Publicar inmediatamente
+              {/* Categoría */}
+              <div>
+                <label htmlFor="category" className="block text-sm font-medium text-gray-300 mb-2">
+                  Categoría
                 </label>
+                <input
+                  type="text"
+                  id="category"
+                  name="category"
+                  value={post.category || ''}
+                  onChange={handleChange}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white"
+                  placeholder="Categoría"
+                />
               </div>
-              <p className="text-xs text-gray-400">
-                Si no está marcado, el post se guardará como borrador.
-              </p>
+              
+              {/* Etiquetas */}
+              <div>
+                <label htmlFor="tags" className="block text-sm font-medium text-gray-300 mb-2">
+                  Etiquetas
+                </label>
+                <input
+                  type="text"
+                  id="tags"
+                  name="tags"
+                  value={post.tags || ''}
+                  onChange={handleChange}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white"
+                  placeholder="Separadas por comas"
+                />
+              </div>
+              
+              {/* Opciones */}
+              <div className="pt-4 space-y-3">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="published"
+                    name="published"
+                    checked={post.published || false}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-600"
+                  />
+                  <label htmlFor="published" className="ml-2 text-sm text-gray-300">
+                    Publicar post
+                  </label>
+                </div>
+                
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="featured"
+                    name="featured"
+                    checked={post.featured || false}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-600"
+                  />
+                  <label htmlFor="featured" className="ml-2 text-sm text-gray-300">
+                    Destacar post
+                  </label>
+                </div>
+              </div>
+              
+              {/* Información adicional */}
+              {id && post.last_modified && (
+                <div className="pt-4 text-xs text-gray-400">
+                  <p>Última modificación: {new Date(post.last_modified).toLocaleString()}</p>
+                  {post.author_name && (
+                    <p>Autor: {post.author_name}</p>
+                  )}
+                </div>
+              )}
             </div>
-
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
-                disabled={saving}
-              >
-                {saving ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                ) : (
-                  <Save size={18} />
-                )}
-                <span>{id ? 'Actualizar Post' : 'Publicar Post'}</span>
-              </button>
-            </div>
-          </form>
-        )}
-        
-        {imageEditorState.open && (
-          <ImageEditor
-            src={imageEditorState.src}
-            onSave={(editedImage) => {
-              if (imageEditorState.callback) {
-                imageEditorState.callback(editedImage);
-              }
-            }}
-            onCancel={() => {
-              setImageEditorState({
-                open: false,
-                src: null,
-                callback: null
-              });
-            }}
-          />
-        )}
+          </div>
+        </form>
       </div>
     </AdminLayout>
   );

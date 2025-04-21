@@ -1,0 +1,196 @@
+/* Estilos para el contenido del blog */
+.blog-content {
+  color: #f3f4f6;
+}
+
+.blog-content h1 {
+  font-size: 1.875rem;
+  font-weight: bold;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: white;
+}
+
+.blog-content h2 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  color: white;
+}
+
+.blog-content h3 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: white;
+}
+
+.blog-content p {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  line-height: 1.625;
+}
+
+.blog-content a {
+  color: #ef4444;
+  text-decoration: underline;
+  &:hover {
+    color: #f87171;
+  }
+}
+
+.blog-content ul, .blog-content ol {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  padding-left: 1.25rem;
+}
+
+.blog-content ul {
+  list-style-type: disc;
+}
+
+.blog-content ol {
+  list-style-type: decimal;
+}
+
+.blog-content li {
+  margin-bottom: 0.5rem;
+}
+
+.blog-content blockquote {
+  padding-left: 1rem;
+  border-left: 4px solid #ef4444;
+  font-style: italic;
+  margin: 1rem 0;
+  color: #d1d5db;
+}
+
+.blog-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+  display: block;
+}
+
+.blog-content img.align-center {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.blog-content img.blog-content-image {
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.blog-content img.loading {
+  min-height: 200px;
+  background-color: #374151;
+  position: relative;
+}
+
+.blog-content img.loading::after {
+  content: "Cargando...";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #9ca3af;
+}
+
+.blog-content img.error {
+  min-height: 100px;
+  background-color: #4B5563;
+  position: relative;
+}
+
+.blog-content img.error::after {
+  content: "Error al cargar imagen";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #F87171;
+}
+
+.blog-content figure {
+  margin: 2rem 0;
+}
+
+.blog-content figure img {
+  margin: 0 auto;
+}
+
+.blog-content figcaption {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin-top: 0.5rem;
+}
+
+.blog-content pre {
+  background-color: #1f2937;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.blog-content code {
+  background-color: #1f2937;
+  padding: 0 0.25rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.blog-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.blog-content th, .blog-content td {
+  border: 1px solid #4b5563;
+  padding: 0.5rem 1rem;
+}
+
+.blog-content th {
+  background-color: #1f2937;
+}
+
+/* Estilo adicional para los espaciados entre elementos */
+.blog-content > *:first-child {
+  margin-top: 0;
+}
+
+.blog-content > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Estilos para alineaciones de texto */
+.blog-content .text-center {
+  text-align: center;
+}
+
+.blog-content .text-right {
+  text-align: right;
+}
+
+.blog-content .text-justify {
+  text-align: justify;
+}
+
+/* Estilo para el fondo de tablero de ajedrez para identificar imágenes transparentes */
+.bg-checkerboard {
+  background-image: linear-gradient(45deg, #333 25%, transparent 25%),
+                    linear-gradient(-45deg, #333 25%, transparent 25%),
+                    linear-gradient(45deg, transparent 75%, #333 75%),
+                    linear-gradient(-45deg, transparent 75%, #333 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  background-color: #555;
+}

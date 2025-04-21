@@ -1,3 +1,84 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Añadir al final del archivo */
+
+/* Estilos para el editor Quill */
+.quill-wrapper {
+  min-height: 300px;
+  margin-bottom: 20px;
+}
+
+.quill-wrapper .ql-toolbar {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+}
+
+.quill-wrapper .ql-container {
+  background-color: #1f2937;
+  border-color: #4a5568;
+  color: #e2e8f0;
+  font-size: 1rem;
+  min-height: 250px;
+  border-bottom-left-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+}
+
+.quill-wrapper .ql-editor {
+  min-height: 250px;
+}
+
+.quill-wrapper .ql-editor.ql-blank::before {
+  color: #9ca3af;
+}
+
+.quill-wrapper .ql-toolbar button {
+  color: #e2e8f0;
+}
+
+.quill-wrapper .ql-toolbar button:hover {
+  color: #ffffff;
+}
+
+.quill-wrapper .ql-toolbar button.ql-active,
+.quill-wrapper .ql-toolbar .ql-picker-label.ql-active {
+  color: #ef4444;
+}
+
+.quill-wrapper .ql-toolbar .ql-picker-label {
+  color: #e2e8f0;
+}
+
+.quill-wrapper .ql-toolbar .ql-picker-options {
+  background-color: #374151;
+  border-color: #4a5568;
+}
+
+.quill-wrapper .ql-toolbar .ql-picker-item {
+  color: #e2e8f0;
+}
+
+.quill-wrapper .ql-toolbar .ql-picker-item:hover {
+  color: #ef4444;
+}
+
+.quill-wrapper .ql-toolbar .ql-stroke {
+  stroke: #e2e8f0;
+}
+
+.quill-wrapper .ql-toolbar button:hover .ql-stroke,
+.quill-wrapper .ql-toolbar button.ql-active .ql-stroke {
+  stroke: #ef4444;
+}
+
+.quill-wrapper .ql-toolbar .ql-fill {
+  fill: #e2e8f0;
+}
+
+.quill-wrapper .ql-toolbar button:hover .ql-fill,
+.quill-wrapper .ql-toolbar button.ql-active .ql-fill {
+  fill: #ef4444;
+}

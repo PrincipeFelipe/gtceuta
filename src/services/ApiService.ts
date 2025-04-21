@@ -1,74 +1,153 @@
 import { API_URL } from '../config/api';
-import authService from './AuthService';
 
-export default class ApiService {
-  private static buildUrl(endpoint: string): string {
-    // Asegurarse de que no haya duplicación de 'api' en las rutas
-    if (endpoint.startsWith('/api/') && API_URL.endsWith('/api')) {
-      endpoint = endpoint.substring(4);
+interface ApiOptions extends RequestInit {
+  requiresAuth?: boolean;
+  isFormData?: boolean;
+}
+
+class ApiService {
+  async request<T>(
+    endpoint: string,
+    options: ApiOptions = {}
+  ): Promise<T> {
+    const { requiresAuth = true, isFormData = false, ...fetchOptions } = options;
+    
+    // Preparar headers
+    const headers: Record<string, string> = {};
+    
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
     }
     
-    // Asegurarse de que hay un / entre la base y el endpoint
-    const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
-    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    
-    return `${baseUrl}${path}`;
-  }
-
-  static async get<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = this.buildUrl(endpoint);
-    return this.request<T>(url, { ...options, method: 'GET' });
-  }
-
-  static async post<T>(endpoint: string, data: any, options: RequestInit = {}): Promise<T> {
-    const url = this.buildUrl(endpoint);
-    return this.request<T>(url, {
-      ...options,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      body: data instanceof FormData ? data : JSON.stringify(data),
-    });
-  }
-  
-  // Añadir otros métodos HTTP según sea necesario (PUT, DELETE, etc.)
-
-  static async request<T>(url: string, options: RequestInit = {}): Promise<T> {
-    // Añadir token si hay uno disponible
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      options.headers = {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`
-      };
-    }
-
-    const response = await fetch(url, options);
-    
-    // Manejar errores de autenticación
-    if (response.status === 401) {
-      const refreshed = await authService.refreshToken();
-      if (refreshed) {
-        // Reintentar con el nuevo token
-        const newToken = localStorage.getItem('accessToken');
-        options.headers = {
-          ...options.headers,
-          'Authorization': `Bearer ${newToken}`
-        };
-        return this.request<T>(url, options);
-      } else {
-        // Si no se pudo refrescar, cerrar sesión
-        authService.logout();
-        throw new Error('La sesión ha expirado. Por favor vuelve a iniciar sesión.');
+    if (requiresAuth) {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
     }
-
-    if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`);
+    
+    // Construir la URL completa asegurándose que no haya duplicación de /api
+    const url = endpoint.startsWith('http') 
+      ? endpoint
+      : endpoint.startsWith('/') 
+        ? `${API_URL}${endpoint}` 
+        : `${API_URL}/${endpoint}`;
+    
+    try {
+      const response = await fetch(url, {
+        ...fetchOptions,
+        headers: {
+          ...headers,
+          ...fetchOptions.headers
+        }
+      });
+      
+      // Manejar errores de autenticación (token expirado)
+      if (response.status === 401 && requiresAuth) {
+        const refreshed = await this.refreshToken();
+        
+        if (refreshed) {
+          // Reintentar con el nuevo token
+          const newToken = localStorage.getItem('accessToken');
+          if (newToken) {
+            headers['Authorization'] = `Bearer ${newToken}`;
+          }
+          
+          return this.request<T>(endpoint, options);
+        } else {
+          // Si no se pudo renovar, cerrar sesión
+          this.logout();
+          throw new Error('Sesión expirada. Por favor, inicie sesión de nuevo.');
+        }
+      }
+      
+      // Manejar errores de respuesta
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || 
+          errorData.message || 
+          `Error ${response.status}: ${response.statusText}`
+        );
+      }
+      
+      // Para respuestas vacías (como DELETE)
+      if (response.status === 204) {
+        return {} as T;
+      }
+      
+      // Parsear la respuesta a JSON
+      return await response.json();
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(`Error en petición API [${endpoint}]:`, error.message);
+      } else {
+        console.error(`Error desconocido en petición API [${endpoint}]`);
+      }
+      throw error;
     }
-
-    return response.json() as Promise<T>;
+  }
+  
+  async refreshToken(): Promise<boolean> {
+    try {
+      const refreshToken = localStorage.getItem('refreshToken');
+      
+      if (!refreshToken) {
+        return false;
+      }
+      
+      const response = await fetch(`${API_URL}/api/token/refresh/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh: refreshToken })
+      });
+      
+      if (!response.ok) {
+        return false;
+      }
+      
+      const data = await response.json();
+      localStorage.setItem('accessToken', data.access);
+      return true;
+    } catch (error) {
+      console.error('Error al refrescar token:', error);
+      return false;
+    }
+  }
+  
+  logout(): void {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    // Redirigir a la página de login
+    window.location.href = '/login';
+  }
+  
+  // Métodos para diferentes operaciones HTTP
+  async get<T>(endpoint: string, options?: Omit<ApiOptions, 'method'>): Promise<T> {
+    return this.request<T>(endpoint, { ...options, method: 'GET' });
+  }
+  
+  async post<T>(endpoint: string, data?: any, options?: Omit<ApiOptions, 'method' | 'body'>): Promise<T> {
+    const body = options?.isFormData ? data : JSON.stringify(data);
+    return this.request<T>(endpoint, { ...options, method: 'POST', body });
+  }
+  
+  async put<T>(endpoint: string, data?: any, options?: Omit<ApiOptions, 'method' | 'body'>): Promise<T> {
+    const body = options?.isFormData ? data : JSON.stringify(data);
+    return this.request<T>(endpoint, { ...options, method: 'PUT', body });
+  }
+  
+  async patch<T>(endpoint: string, data?: any, options?: Omit<ApiOptions, 'method' | 'body'>): Promise<T> {
+    const body = options?.isFormData ? data : JSON.stringify(data);
+    return this.request<T>(endpoint, { ...options, method: 'PATCH', body });
+  }
+  
+  async delete<T>(endpoint: string, options?: Omit<ApiOptions, 'method'>): Promise<T> {
+    return this.request<T>(endpoint, { ...options, method: 'DELETE' });
   }
 }
+
+export default new ApiService();

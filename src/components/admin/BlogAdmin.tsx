@@ -1,62 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import { Search, Plus, Eye, Edit2, Trash2, Calendar, Tag, Download, Upload } from 'lucide-react';
-import AdminLayout from './AdminLayout';
-import BlogService from '../../services/BlogService';
-import { BlogPost } from '../../services/BlogService';
 import { Helmet } from 'react-helmet-async';
-import SmartImage from '../ui/SmartImage'; // Cambiar aquí
-import { normalizeImageUrl } from '../../utils/imageUtils';
+import { Search, Plus, Download, Upload, Eye, Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import AdminLayout from './AdminLayout';
+import blogService, { BlogPost } from '../../services/BlogService';
+import SmartImage from '../ui/SmartImage';
+import { toast, Toaster } from 'react-hot-toast';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 const BlogAdmin: React.FC = () => {
+  const navigate = useNavigate();
+  
+  // Estados
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showImportExport, setShowImportExport] = useState(false);
-  const navigate = useNavigate();
-
-  // Cargar todos los posts al inicializar
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [postsPerPage] = useState<number>(10);
+  
+  // Estado para diálogo de confirmación
+  const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
+  const [postToDelete, setPostToDelete] = useState<number | null>(null);
+  
+  // Cargar posts
   useEffect(() => {
-    const loadPosts = async () => {
-      try {
-        const allPosts = await BlogService.getAllPosts();
-        setPosts(allPosts);
-      } catch (error) {
-        console.error('Error al cargar los posts:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadPosts();
   }, []);
-
-  // Filtrar posts basado en el término de búsqueda
-  const filteredPosts = posts.filter(post =>
-    post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    post.excerpt.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Manejar la eliminación de un post
-  const handleDelete = async (id: number) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.')) {
-      try {
-        await BlogService.deletePost(id);
-        setPosts(posts.filter(post => post.id !== id));
-        toast.success('Post eliminado correctamente');
-      } catch (error) {
-        console.error('Error al eliminar el post:', error);
-        toast.error('Error al eliminar el post');
-      }
+  
+  const loadPosts = async () => {
+    try {
+      setLoading(true);
+      const data = await blogService.getAllPosts();
+      setPosts(data);
+    } catch (error) {
+      console.error('Error al cargar posts:', error);
+      toast.error('Error al cargar los posts');
+    } finally {
+      setLoading(false);
     }
   };
-
+  
+  // Filtrar posts según término de búsqueda
+  const filteredPosts = posts.filter(post =>
+    post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (post.excerpt || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (post.category || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  // Paginación
+  const indexOfLastPost = currentPage * postsPerPage;
+  const indexOfFirstPost = indexOfLastPost - postsPerPage;
+  const currentPosts = filteredPosts.slice(indexOfFirstPost, indexOfLastPost);
+  
+  // Número total de páginas
+  const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
+  
   // Manejar la exportación de datos
   const handleExport = async () => {
     try {
       // Obtener todos los posts
-      const allPosts = await BlogService.getAllPosts();
+      const allPosts = await blogService.getAllPosts();
       
       // Convertir a JSON y crear blob
       const jsonData = JSON.stringify(allPosts, null, 2);
@@ -84,70 +87,58 @@ const BlogAdmin: React.FC = () => {
       toast.error('Error al exportar los posts');
     }
   };
-
+  
   // Manejar la importación de datos
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    const file = e.target.files[0];
     
     try {
-      // Leer el archivo
       const reader = new FileReader();
-      const fileContent = await new Promise<string>((resolve, reject) => {
-        reader.onload = (e) => resolve(e.target?.result as string);
-        reader.onerror = (e) => reject(e);
-        reader.readAsText(file);
-      });
-      
-      // Parsear el JSON
-      const postsToImport = JSON.parse(fileContent) as BlogPost[];
-      
-      // Validar la estructura básica
-      if (!Array.isArray(postsToImport) || !postsToImport.every(post => 
-        typeof post.title === 'string' && 
-        typeof post.content === 'string' &&
-        typeof post.slug === 'string'
-      )) {
-        toast.error('Formato de archivo inválido');
-        return;
-      }
-      
-      // Confirmar con el usuario
-      if (!window.confirm(`¿Estás seguro de importar ${postsToImport.length} posts? Esta acción podría sobreescribir datos existentes.`)) {
-        toast.info('Importación cancelada por el usuario');
-        return;
-      }
-      
-      // Importar cada post
-      let imported = 0;
-      let errors = 0;
-      
-      for (const post of postsToImport) {
-        try {
-          // Si el post tiene ID, intentar actualizar
-          if (post.id) {
-            await BlogService.updatePost(post);
-          } else {
-            // Si no tiene ID, crear nuevo
-            const { id, ...postData } = post as any;
-            await BlogService.addPost(postData);
-          }
-          imported++;
-        } catch (err) {
-          console.error(`Error al importar post "${post.title}":`, err);
-          errors++;
+      reader.onload = async (event) => {
+        if (!event.target || typeof event.target.result !== 'string') {
+          toast.error('Error al leer el archivo');
+          return;
         }
-      }
+        
+        const postsData = JSON.parse(event.target.result);
+        
+        if (!Array.isArray(postsData)) {
+          toast.error('Formato de archivo inválido');
+          return;
+        }
+        
+        let imported = 0;
+        let errors = 0;
+        
+        for (const post of postsData) {
+          try {
+            // Si el post tiene ID, intentar actualizar
+            if (post.id) {
+              await blogService.updatePost(post);
+            } else {
+              // Si no tiene ID, crear nuevo
+              const { id, ...postData } = post;
+              await blogService.addPost(postData);
+            }
+            imported++;
+          } catch (err) {
+            console.error(`Error al importar post "${post.title}":`, err);
+            errors++;
+          }
+        }
+        
+        await loadPosts();
+        
+        if (errors > 0) {
+          toast.warning(`Importación completada: ${imported} posts importados, ${errors} errores`);
+        } else {
+          toast.success(`${imported} posts importados correctamente`);
+        }
+      };
       
-      // Recargar posts después de la importación
-      const updatedPosts = await BlogService.getAllPosts();
-      setPosts(updatedPosts);
-      
-      if (errors > 0) {
-        toast.warning(`Importación completada: ${imported} posts importados, ${errors} errores`);
-      } else {
-        toast.success(`${imported} posts importados correctamente`);
-      }
+      reader.readAsText(file);
     } catch (error) {
       console.error('Error al importar posts:', error);
       toast.error('Error al importar los posts. Verifica el formato del archivo.');
@@ -155,7 +146,30 @@ const BlogAdmin: React.FC = () => {
       e.target.value = ''; // Resetear input para permitir seleccionar el mismo archivo
     }
   };
-
+  
+  // Manejar eliminación de post
+  const handleDelete = (postId: number) => {
+    setPostToDelete(postId);
+    setShowDeleteDialog(true);
+  };
+  
+  // Confirmar eliminación de post
+  const confirmDelete = async () => {
+    if (postToDelete === null) return;
+    
+    try {
+      await blogService.deletePost(postToDelete);
+      setPosts(prev => prev.filter(post => post.id !== postToDelete));
+      toast.success('Post eliminado correctamente');
+    } catch (error) {
+      console.error('Error al eliminar post:', error);
+      toast.error('Error al eliminar el post');
+    } finally {
+      setShowDeleteDialog(false);
+      setPostToDelete(null);
+    }
+  };
+  
   // Formatear fecha para mostrar
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
@@ -164,7 +178,17 @@ const BlogAdmin: React.FC = () => {
       year: 'numeric'
     });
   };
-
+  
+  // Obtener la URL de la imagen (ya sea image o image_url)
+  const getImageUrl = (post: BlogPost): string | null => {
+    if (post.image_url) {
+      return post.image_url;
+    } else if (typeof post.image === 'string') {
+      return post.image;
+    }
+    return null;
+  };
+  
   return (
     <AdminLayout>
       <div className="container mx-auto px-4 py-8">
@@ -172,16 +196,20 @@ const BlogAdmin: React.FC = () => {
           <title>Administrar Blog - GT Ceuta</title>
         </Helmet>
         
-        <div className="flex justify-between items-center mb-6">
+        <Toaster position="top-right" />
+        
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
           <h1 className="text-3xl font-bold text-white">Administrar Blog</h1>
           <div className="flex space-x-2 mt-4 sm:mt-0">
             <button
               onClick={() => navigate('/admin/blog/new')}
               className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition"
+              title="Crear nuevo post"
             >
               <Plus size={18} />
-              <span>Nuevo Post</span>
+              <span className="hidden sm:inline">Nuevo Post</span>
             </button>
+            
             <button 
               onClick={handleExport}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
@@ -190,6 +218,7 @@ const BlogAdmin: React.FC = () => {
               <Download size={18} />
               <span className="hidden sm:inline">Exportar</span>
             </button>
+            
             <label className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition cursor-pointer">
               <Upload size={18} />
               <span className="hidden sm:inline">Importar</span>
@@ -247,83 +276,128 @@ const BlogAdmin: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg shadow">
-            <table className="min-w-full bg-gray-800">
-              <thead>
-                <tr className="bg-gray-700">
-                  <th className="px-4 py-3 text-left text-white font-medium">Título</th>
-                  <th className="px-4 py-3 text-left text-white font-medium">Fecha</th>
-                  <th className="px-4 py-3 text-left text-white font-medium">Estado</th>
-                  <th className="px-4 py-3 text-left text-white font-medium">Categoría</th>
-                  <th className="px-4 py-3 text-center text-white font-medium">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {filteredPosts.map((post) => (
-                  <tr key={post.id} className="hover:bg-gray-700">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center">
-                        {post.image && (
+          <>
+            <div className="overflow-x-auto rounded-lg shadow">
+              <table className="min-w-full bg-gray-800">
+                <thead>
+                  <tr className="bg-gray-700">
+                    <th className="px-4 py-3 text-left text-white font-medium">Título</th>
+                    <th className="px-4 py-3 text-left text-white font-medium">Fecha</th>
+                    <th className="px-4 py-3 text-left text-white font-medium">Estado</th>
+                    <th className="px-4 py-3 text-left text-white font-medium">Categoría</th>
+                    <th className="px-4 py-3 text-center text-white font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {currentPosts.map((post) => (
+                    <tr key={post.id} className="hover:bg-gray-700">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center">
                           <div className="h-12 w-16 bg-gray-900 rounded overflow-hidden mr-3 relative">
                             <SmartImage 
-                              src={post.image} 
+                              src={getImageUrl(post)} 
                               alt={post.title}
                               className="h-full w-full object-cover"
                               containerClassName="h-full w-full"
                               fallbackSrc="/images/blog/default-post.jpg"
                             />
                           </div>
-                        )}
-                        <span className="font-medium text-white">{post.title}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-300">{formatDate(post.date)}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          post.published
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                      >
-                        {post.published ? 'Publicado' : 'Borrador'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-300">
-                      {post.category || 'Sin categoría'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-center space-x-2">
-                        <button
-                          onClick={() => navigate(`/blog/${post.slug}`)}
-                          className="p-1 text-blue-400 hover:text-blue-300 transition-colors"
-                          title="Ver post"
+                          <span className="font-medium text-white">{post.title}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-300">{formatDate(post.date)}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            post.published
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}
                         >
-                          <Eye size={18} />
-                        </button>
-                        <button
-                          onClick={() => navigate(`/admin/blog/edit/${post.id}`)}
-                          className="p-1 text-yellow-400 hover:text-yellow-300 transition-colors"
-                          title="Editar post"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(post.id)}
-                          className="p-1 text-red-400 hover:text-red-300 transition-colors"
-                          title="Eliminar post"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                          {post.published ? 'Publicado' : 'Borrador'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-300">
+                        {post.category || 'Sin categoría'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-center space-x-2">
+                          <button
+                            onClick={() => window.open(`/blog/${post.slug}`, '_blank')}
+                            className="p-1 text-blue-400 hover:text-blue-300 transition-colors"
+                            title="Ver post"
+                          >
+                            <Eye size={18} />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/admin/blog/edit/${post.id}`)}
+                            className="p-1 text-yellow-400 hover:text-yellow-300 transition-colors"
+                            title="Editar post"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(post.id)}
+                            className="p-1 text-red-400 hover:text-red-300 transition-colors"
+                            title="Eliminar post"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Paginación */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center mt-6">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className={`flex items-center px-3 py-1 rounded-md ${
+                    currentPage === 1
+                      ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                      : 'bg-gray-700 text-white hover:bg-gray-600'
+                  }`}
+                >
+                  <ChevronLeft size={16} className="mr-1" />
+                  Anterior
+                </button>
+                
+                <div className="text-gray-300">
+                  Página {currentPage} de {totalPages}
+                </div>
+                
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className={`flex items-center px-3 py-1 rounded-md ${
+                    currentPage === totalPages
+                      ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                      : 'bg-gray-700 text-white hover:bg-gray-600'
+                  }`}
+                >
+                  Siguiente
+                  <ChevronRight size={16} className="ml-1" />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
+      
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={confirmDelete}
+        title="Eliminar Post"
+        description="¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer y se eliminarán todas las imágenes asociadas."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        isDestructive={true}
+      />
     </AdminLayout>
   );
 };

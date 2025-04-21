@@ -1,116 +1,154 @@
-import React, { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Home, FileText, Settings, Users, LogOut, Globe, ExternalLink } from 'lucide-react';
+import React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  FileText, 
+  Users, 
+  Settings, 
+  LogOut, 
+  ChevronDown, 
+  Menu, 
+  X,
+  Heart,
+  Image
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface AdminLayoutProps {
-  children: ReactNode;
+  children: React.ReactNode;
 }
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
-  const location = useLocation();
-  const { logout } = useAuth();
-
-  console.log("AdminLayout - rendering with children", children ? "present" : "missing");
-
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = React.useState(false);
+  
   const handleLogout = async () => {
-    if (window.confirm('¿Estás seguro que quieres cerrar sesión?')) {
-      await logout();
-    }
+    await logout();
+    navigate('/login');
   };
-
-  const isActive = (path: string) => {
-    return location.pathname === path || location.pathname.startsWith(`${path}/`);
-  };
-
+  
+  // Menú de navegación
+  const navItems = [
+    { title: 'Dashboard', icon: <LayoutDashboard className="mr-3" size={20} />, path: '/admin' },
+    { title: 'Blog', icon: <FileText className="mr-3" size={20} />, path: '/admin/blog' },
+    { title: 'Patrocinadores', icon: <Heart className="mr-3" size={20} />, path: '/admin/sponsors' },
+    { title: 'Imágenes', icon: <Image className="mr-3" size={20} />, path: '/admin/images' },
+    { title: 'Usuarios', icon: <Users className="mr-3" size={20} />, path: '/admin/users' },
+    { title: 'Configuración', icon: <Settings className="mr-3" size={20} />, path: '/admin/settings' },
+  ];
+  
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
+      {/* Sidebar para móviles */}
+      <div className={`fixed inset-0 bg-gray-900 bg-opacity-75 z-40 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`} onClick={() => setSidebarOpen(false)}></div>
+      
       {/* Sidebar */}
-      <div className="w-64 bg-gray-800 p-4 flex flex-col">
-        <div className="mb-8">
-          <Link to="/admin" className="flex items-center">
-            <h1 className="text-xl font-bold">GT Ceuta Admin</h1>
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-gray-800 border-r border-gray-700 transition-transform duration-300 ease-in-out transform 
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+        lg:translate-x-0 lg:static lg:z-0
+      `}>
+        {/* Logo y botón cerrar */}
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-700">
+          <Link to="/admin" className="flex items-center gap-2">
+            <img src="/logo.png" alt="GT Ceuta" className="h-8" />
+            <span className="text-xl font-semibold">Admin Panel</span>
           </Link>
-        </div>
-
-        <nav className="flex-1 space-y-2">
-          <Link
-            to="/admin"
-            className={`flex items-center p-2 rounded-lg hover:bg-gray-700 ${
-              location.pathname === '/admin'
-                ? 'bg-red-600 hover:bg-red-700'
-                : ''
-            }`}
+          <button 
+            onClick={() => setSidebarOpen(false)} 
+            className="lg:hidden text-gray-400 hover:text-white transition"
           >
-            <Home size={20} className="mr-3" />
-            <span>Dashboard</span>
-          </Link>
-          
-          <Link
-            to="/admin/blog"
-            className={`flex items-center p-2 rounded-lg hover:bg-gray-700 ${
-              isActive('/admin/blog') ? 'bg-red-600 hover:bg-red-700' : ''
-            }`}
-          >
-            <FileText size={20} className="mr-3" />
-            <span>Blog</span>
-          </Link>
-          
-          <Link
-            to="/admin/sponsors"
-            className={`flex items-center p-2 rounded-lg hover:bg-gray-700 ${
-              isActive('/admin/sponsors') ? 'bg-red-600 hover:bg-red-700' : ''
-            }`}
-          >
-            <Globe size={20} className="mr-3" />
-            <span>Patrocinadores</span>
-          </Link>
-          
-          <Link
-            to="/admin/users"
-            className={`flex items-center p-2 rounded-lg hover:bg-gray-700 ${
-              isActive('/admin/users') ? 'bg-red-600 hover:bg-red-700' : ''
-            }`}
-          >
-            <Users size={20} className="mr-3" />
-            <span>Usuarios</span>
-          </Link>
-          
-          <Link
-            to="/admin/settings"
-            className={`flex items-center p-2 rounded-lg hover:bg-gray-700 ${
-              isActive('/admin/settings') ? 'bg-red-600 hover:bg-red-700' : ''
-            }`}
-          >
-            <Settings size={20} className="mr-3" />
-            <span>Ajustes</span>
-          </Link>
-        </nav>
-
-        <div className="pt-4 border-t border-gray-700 space-y-2">
-          <a
-            href="/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex w-full items-center p-2 rounded-lg text-blue-400 hover:bg-gray-700 hover:text-blue-300"
-          >
-            <ExternalLink size={20} className="mr-3" />
-            <span>Ver sitio web</span>
-          </a>
-          
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center p-2 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white"
-          >
-            <LogOut size={20} className="mr-3" />
-            <span>Cerrar sesión</span>
+            <X size={24} />
           </button>
         </div>
-      </div>
-
-      {/* Main content area */}
-      <div className="flex-1 overflow-auto p-6">
-        {children}
+        
+        {/* Menú de navegación */}
+        <nav className="p-4">
+          <ul className="space-y-1">
+            {navItems.map((item) => (
+              <li key={item.path}>
+                <Link
+                  to={item.path}
+                  className={`flex items-center px-3 py-2 rounded-lg transition ${
+                    pathname === item.path || pathname.startsWith(`${item.path}/`)
+                      ? 'bg-red-700 text-white font-medium'
+                      : 'text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  {item.icon}
+                  {item.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
+      
+      {/* Contenido principal */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="bg-gray-800 border-b border-gray-700 h-16 flex items-center px-4 sticky top-0 z-30">
+          <div className="flex-1 flex">
+            {/* Botón menú móvil */}
+            <button 
+              onClick={() => setSidebarOpen(true)} 
+              className="lg:hidden mr-4 text-gray-300 hover:text-white transition"
+            >
+              <Menu size={24} />
+            </button>
+            
+            {/* Título de la página actual */}
+            <h1 className="text-xl font-semibold hidden sm:block">
+              {navItems.find(item => pathname === item.path || pathname.startsWith(`${item.path}/`))?.title || 'Admin'}
+            </h1>
+          </div>
+          
+          {/* Perfil de usuario */}
+          <div className="relative">
+            <button
+              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+              className="flex items-center space-x-2 hover:bg-gray-700 px-3 py-2 rounded-lg"
+            >
+              <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
+                <span className="font-medium">{user?.username?.charAt(0).toUpperCase() || 'U'}</span>
+              </div>
+              <span className="hidden sm:block">{user?.username || 'Usuario'}</span>
+              <ChevronDown size={16} />
+            </button>
+            
+            {/* Dropdown */}
+            {profileDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-md shadow-lg z-50">
+                <div className="p-3 border-b border-gray-700">
+                  <p className="font-medium">{user?.first_name} {user?.last_name}</p>
+                  <p className="text-sm text-gray-400">{user?.email}</p>
+                </div>
+                <div className="p-2">
+                  <button 
+                    onClick={handleLogout}
+                    className="flex items-center w-full px-3 py-2 text-red-400 hover:bg-gray-700 rounded-lg transition"
+                  >
+                    <LogOut size={18} className="mr-2" />
+                    Cerrar sesión
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </header>
+        
+        {/* Contenido */}
+        <main className="flex-grow">
+          {children}
+        </main>
+        
+        {/* Footer */}
+        <footer className="bg-gray-800 border-t border-gray-700 p-4 text-center text-sm text-gray-400">
+          <p>&copy; {new Date().getFullYear()} GT Ceuta. Todos los derechos reservados.</p>
+        </footer>
       </div>
     </div>
   );
