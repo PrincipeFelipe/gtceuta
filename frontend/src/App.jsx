@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { HelmetProvider } from 'react-helmet-async';
 
 import theme from './theme';
 import './styles/global.css';
@@ -17,42 +18,44 @@ import AdminRoute from './components/common/AdminRoute';
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>               {/* Router debe ser el padre de AuthProvider */}
-        <AuthProvider>       {/* AuthProvider ahora está dentro de Router */}
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            
-            <Route path="/dashboard" element={
-              <AdminRoute>
-                <Dashboard />
-              </AdminRoute>
-            } />
-            
-            <Route path="/users" element={
-              <AdminRoute>
-                <UsersPage />
-              </AdminRoute>
-            } />
-            
-            <Route path="/users/create" element={
-              <AdminRoute>
-                <UserCreatePage />
-              </AdminRoute>
-            } />
-            
-            <Route path="/users/edit/:id" element={
-              <AdminRoute>
-                <UserEditPage />
-              </AdminRoute>
-            } />
-            
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </AuthProvider>
-      </Router>
-    </ThemeProvider>
+    <HelmetProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Router>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              
+              <Route path="/dashboard" element={
+                <AdminRoute>
+                  <Dashboard />
+                </AdminRoute>
+              } />
+              
+              <Route path="/users" element={
+                <AdminRoute>
+                  <UsersPage />
+                </AdminRoute>
+              } />
+              
+              <Route path="/users/create" element={
+                <AdminRoute>
+                  <UserCreatePage />
+                </AdminRoute>
+              } />
+              
+              <Route path="/users/edit/:id" element={
+                <AdminRoute>
+                  <UserEditPage />
+                </AdminRoute>
+              } />
+              
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </AuthProvider>
+        </Router>
+      </ThemeProvider>
+    </HelmetProvider>
   );
 }
 

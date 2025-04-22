@@ -1,139 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../layouts/AdminLayout';
 import api from '../../services/api';
-import UserDeleteDialog from '../../components/users/UserDeleteDialog';
+import { Helmet } from 'react-helmet-async';
 
-// Material-UI imports para garantizar compatibilidad
-import { 
-  Typography, 
-  Button, 
-  Box, 
-  Paper, 
-  TextField, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  IconButton, 
-  Badge,
-  InputAdornment,
-  Tooltip,
-  CircularProgress,
-  Divider
-} from '@mui/material';
-
-// Iconos
+// Iconos - Mantenemos los iconos de Material-UI por consistencia
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
   Search as SearchIcon,
-  SupervisorAccount as SupervisorAccountIcon,
-  People as PeopleIcon,
+  SupervisorAccount as AdminIcon,
+  People as UserIcon,
   Edit as EditRoleIcon,
-  Visibility as VisibilityIcon
+  Visibility as ViewIcon,
+  KeyboardArrowLeft as ChevronLeftIcon,
+  KeyboardArrowRight as ChevronRightIcon
 } from '@mui/icons-material';
-
-// Estilos personalizados para replicar la apariencia deseada
-const styles = {
-  container: {
-    padding: '24px',
-    width: '100%', // Ocupar todo el ancho disponible
-  },
-  pageHeader: {
-    fontSize: '2.5rem',
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: '24px'
-  },
-  sectionTitle: {
-    fontSize: '1.25rem',
-    color: '#FFF',
-    marginBottom: '16px',
-    fontWeight: '500'
-  },
-  card: {
-    backgroundColor: '#1e1e2d',
-    padding: '16px',
-    borderRadius: '8px',
-    marginBottom: '16px',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-  },
-  statsRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr',
-    gap: '16px',
-    marginBottom: '24px'
-  },
-  statCard: {
-    backgroundColor: '#1e1e2d',
-    padding: '16px',
-    borderRadius: '8px',
-    display: 'flex',
-    flexDirection: 'column'
-  },
-  statHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '8px'
-  },
-  statTitle: {
-    fontSize: '1.1rem',
-    color: '#DDD',
-    fontWeight: '500'
-  },
-  statValue: {
-    fontSize: '1.75rem',
-    fontWeight: 'bold'
-  },
-  actionButton: {
-    marginLeft: '8px',
-    backgroundColor: '#2a2a3c',
-    color: '#FFF'
-  },
-  adminBadge: {
-    backgroundColor: 'rgba(244, 67, 54, 0.15)',
-    color: '#f44336',
-    padding: '4px 8px',
-    borderRadius: '12px',
-    fontSize: '0.75rem',
-    fontWeight: 'bold'
-  },
-  editorBadge: {
-    backgroundColor: 'rgba(255, 193, 7, 0.15)',
-    color: '#ffc107',
-    padding: '4px 8px',
-    borderRadius: '12px',
-    fontSize: '0.75rem',
-    fontWeight: 'bold'
-  },
-  userBadge: {
-    backgroundColor: 'rgba(33, 150, 243, 0.15)',
-    color: '#2196f3',
-    padding: '4px 8px',
-    borderRadius: '12px',
-    fontSize: '0.75rem',
-    fontWeight: 'bold'
-  },
-  iconCircle: {
-    borderRadius: '50%',
-    padding: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  tableHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '16px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
-  }
-};
 
 const UsersPage = () => {
   const navigate = useNavigate();
@@ -234,267 +117,269 @@ const UsersPage = () => {
     }
   };
 
-  const getRoleBadgeStyle = (role) => {
+  const getRoleBadgeClass = (role) => {
     switch (role) {
       case 'admin':
-        return styles.adminBadge;
+        return 'bg-red-100 text-red-800';
       case 'editor':
-        return styles.editorBadge;
+        return 'bg-yellow-100 text-yellow-800';
       default:
-        return styles.userBadge;
+        return 'bg-blue-100 text-blue-800';
     }
   };
 
   return (
     <AdminLayout>
-      <Box sx={styles.container}>
-        {/* Header con título */}
-        <Typography variant="h1" sx={styles.pageHeader}>
-          Gestión de Usuarios
-        </Typography>
-
-        {/* Tarjetas de resumen */}
-        <Box sx={styles.statsRow}>
-          <Paper elevation={0} sx={styles.statCard}>
-            <Box sx={styles.statHeader}>
-              <Typography sx={styles.statTitle}>Administradores</Typography>
-              <Box sx={{ ...styles.iconCircle, backgroundColor: 'rgba(244, 67, 54, 0.15)' }}>
-                <SupervisorAccountIcon sx={{ color: '#f44336' }} />
-              </Box>
-            </Box>
-            <Typography sx={{ ...styles.statValue, color: '#f44336' }}>
-              {loading ? <CircularProgress size={20} color="error" /> : adminCount}
-            </Typography>
-          </Paper>
-          
-          <Paper elevation={0} sx={styles.statCard}>
-            <Box sx={styles.statHeader}>
-              <Typography sx={styles.statTitle}>Editores</Typography>
-              <Box sx={{ ...styles.iconCircle, backgroundColor: 'rgba(255, 193, 7, 0.15)' }}>
-                <EditRoleIcon sx={{ color: '#ffc107' }} />
-              </Box>
-            </Box>
-            <Typography sx={{ ...styles.statValue, color: '#ffc107' }}>
-              {loading ? <CircularProgress size={20} color="warning" /> : editorCount}
-            </Typography>
-          </Paper>
-          
-          <Paper elevation={0} sx={styles.statCard}>
-            <Box sx={styles.statHeader}>
-              <Typography sx={styles.statTitle}>Usuarios</Typography>
-              <Box sx={{ ...styles.iconCircle, backgroundColor: 'rgba(33, 150, 243, 0.15)' }}>
-                <PeopleIcon sx={{ color: '#2196f3' }} />
-              </Box>
-            </Box>
-            <Typography sx={{ ...styles.statValue, color: '#2196f3' }}>
-              {loading ? <CircularProgress size={20} color="primary" /> : userCount}
-            </Typography>
-          </Paper>
-        </Box>
-
-        {/* Sección de búsqueda y gestión de usuarios */}
-        <Box sx={{ mb: 3, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 2 }}>
-          <TextField
-            variant="outlined"
-            placeholder="Buscar usuarios..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: 'text.secondary' }} />
-                </InputAdornment>
-              ),
-              sx: {
-                backgroundColor: '#1e1e2d',
-                borderRadius: '8px',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(255, 255, 255, 0.15)'
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(255, 255, 255, 0.25)'
-                }
-              }
-            }}
-            sx={{ flex: { xs: '1', sm: '0 1 400px' } }}
-          />
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
+      <Helmet>
+        <title>Administrar Usuarios - GT Ceuta</title>
+      </Helmet>
+      
+      <div className="container mx-auto px-4 py-8">
+        {/* Header con título y botón de crear nuevo */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+          <h1 className="text-3xl font-bold text-white">Administrar Usuarios</h1>
+          <button
             onClick={() => navigate('/users/create')}
-            sx={{
-              backgroundColor: '#4CAF50',
-              '&:hover': { backgroundColor: '#388E3C' },
-              height: '56px', // Para igualar altura con el TextField
-              whiteSpace: 'nowrap'
-            }}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition mt-4 sm:mt-0"
           >
-            Nuevo Usuario
-          </Button>
-        </Box>
+            <AddIcon fontSize="small" />
+            <span className="hidden sm:inline">Nuevo Usuario</span>
+          </button>
+        </div>
+
+        {/* Tarjetas de estadísticas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          {/* Tarjeta de Administradores */}
+          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:transform hover:-translate-y-1 transition-transform duration-200">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-gray-300 font-medium">Administradores</h3>
+              <div className="bg-red-500/20 p-2 rounded-full">
+                <AdminIcon className="text-red-500" fontSize="small" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-red-500">
+              {loading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-red-500"></div>
+              ) : (
+                adminCount
+              )}
+            </div>
+          </div>
+
+          {/* Tarjeta de Editores */}
+          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:transform hover:-translate-y-1 transition-transform duration-200">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-gray-300 font-medium">Editores</h3>
+              <div className="bg-yellow-500/20 p-2 rounded-full">
+                <EditRoleIcon className="text-yellow-500" fontSize="small" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-yellow-500">
+              {loading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-yellow-500"></div>
+              ) : (
+                editorCount
+              )}
+            </div>
+          </div>
+
+          {/* Tarjeta de Usuarios */}
+          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:transform hover:-translate-y-1 transition-transform duration-200">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-gray-300 font-medium">Usuarios</h3>
+              <div className="bg-blue-500/20 p-2 rounded-full">
+                <UserIcon className="text-blue-500" fontSize="small" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-blue-500">
+              {loading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
+              ) : (
+                userCount
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Barra de búsqueda */}
+        <div className="mb-6">
+          <div className="relative">
+            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fontSize="small" />
+            <input
+              type="text"
+              placeholder="Buscar usuarios..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+            />
+          </div>
+        </div>
 
         {/* Mensaje de error si existe */}
         {error && (
-          <Paper 
-            elevation={0}
-            sx={{
-              mt: 2,
-              mb: 3,
-              p: 2,
-              backgroundColor: 'rgba(244, 67, 54, 0.15)',
-              color: '#f44336',
-              borderRadius: '8px',
-              borderLeft: '4px solid #f44336'
-            }}
-          >
-            <Typography>{error}</Typography>
-          </Paper>
+          <div className="bg-red-900/20 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg">
+            <p className="text-red-400">{error}</p>
+          </div>
         )}
 
         {/* Tabla de usuarios */}
-        <Paper elevation={0} sx={{ backgroundColor: '#1e1e2d', borderRadius: '8px', width: '100%' }}>
+        <div className="overflow-x-auto rounded-lg shadow">
           {loading ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6 }}>
-              <CircularProgress color="primary" size={40} />
-              <Typography sx={{ mt: 2, color: 'text.secondary' }}>
-                Cargando usuarios...
-              </Typography>
-            </Box>
+            <div className="text-center py-8 bg-gray-800 rounded-lg">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto"></div>
+              <p className="mt-4 text-gray-300">Cargando usuarios...</p>
+            </div>
           ) : filteredUsers.length === 0 ? (
-            <Box sx={{ textAlign: 'center', py: 6 }}>
-              <PeopleIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
-              <Typography variant="h6" sx={{ color: 'text.secondary', mb: 1 }}>
-                No hay usuarios para mostrar
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'text.disabled', mb: 2 }}>
-                {searchTerm ? 'Prueba con otra búsqueda' : 'Puedes comenzar creando un nuevo usuario'}
-              </Typography>
+            <div className="text-center py-12 bg-gray-800 rounded-lg">
+              <UserIcon className="mx-auto h-16 w-16 text-gray-600 mb-4" />
+              <p className="text-xl text-gray-300 mb-4">
+                No hay usuarios para mostrar.
+                {searchTerm && " Prueba con otra búsqueda o "}
+              </p>
               {searchTerm ? (
-                <Button 
-                  color="primary"
+                <button
                   onClick={() => setSearchTerm('')}
+                  className="text-red-500 hover:underline"
                 >
-                  Limpiar filtros
-                </Button>
+                  limpiar filtros
+                </button>
               ) : (
-                <Button 
-                  variant="contained" 
-                  color="primary" 
-                  startIcon={<AddIcon />}
+                <button
                   onClick={() => navigate('/users/create')}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white transition"
                 >
-                  Nuevo Usuario
-                </Button>
+                  <AddIcon fontSize="small" />
+                  Nuevo usuario
+                </button>
               )}
-            </Box>
+            </div>
           ) : (
             <>
-              <TableContainer sx={{ width: '100%' }}>
-                <Table sx={{ minWidth: '100%' }}>
-                  <TableHead sx={{ bgcolor: 'rgba(0, 0, 0, 0.2)' }}>
-                    <TableRow>
-                      <TableCell sx={{ color: '#FFF', fontWeight: '500' }}>Usuario</TableCell>
-                      <TableCell sx={{ color: '#FFF', fontWeight: '500' }}>Nombre</TableCell>
-                      <TableCell sx={{ color: '#FFF', fontWeight: '500' }}>Email</TableCell>
-                      <TableCell sx={{ color: '#FFF', fontWeight: '500' }}>Rol</TableCell>
-                      <TableCell align="right" sx={{ color: '#FFF', fontWeight: '500' }}>Acciones</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {currentUsers.map((user) => (
-                      <TableRow key={user.id} hover>
-                        <TableCell sx={{ color: '#FFF', fontWeight: 'medium' }}>{user.username}</TableCell>
-                        <TableCell sx={{ color: 'text.secondary' }}>
-                          {user.first_name ? `${user.first_name} ${user.last_name}` : '-'}
-                        </TableCell>
-                        <TableCell sx={{ color: 'text.secondary' }}>{user.email}</TableCell>
-                        <TableCell>
-                          <Box component="span" sx={getRoleBadgeStyle(user.role)}>
-                            {getRoleLabel(user.role)}
-                          </Box>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Tooltip title="Editar usuario">
-                            <IconButton 
-                              onClick={() => handleEdit(user.id)}
-                              sx={{ color: '#ffc107' }}
-                              size="small"
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Eliminar usuario">
-                            <IconButton 
-                              onClick={() => handleDelete(user)}
-                              sx={{ color: '#f44336' }}
-                              size="small"
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Ver detalles">
-                            <IconButton 
-                              sx={{ color: 'text.secondary' }}
-                              size="small"
-                            >
-                              <VisibilityIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
+              <table className="min-w-full bg-gray-800">
+                <thead>
+                  <tr className="bg-gray-700">
+                    <th className="px-4 py-3 text-left text-white font-medium">Usuario</th>
+                    <th className="px-4 py-3 text-left text-white font-medium">Nombre</th>
+                    <th className="px-4 py-3 text-left text-white font-medium">Email</th>
+                    <th className="px-4 py-3 text-left text-white font-medium">Rol</th>
+                    <th className="px-4 py-3 text-center text-white font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {currentUsers.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-700">
+                      <td className="px-4 py-3 text-white font-medium">{user.username}</td>
+                      <td className="px-4 py-3 text-gray-300">
+                        {user.first_name ? `${user.first_name} ${user.last_name}` : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-300">{user.email}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeClass(user.role)}`}>
+                          {getRoleLabel(user.role)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-center space-x-2">
+                          <button
+                            onClick={() => handleEdit(user.id)}
+                            className="p-1 text-yellow-400 hover:text-yellow-300 transition-colors"
+                            title="Editar usuario"
+                          >
+                            <EditIcon fontSize="small" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user)}
+                            className="p-1 text-red-400 hover:text-red-300 transition-colors"
+                            title="Eliminar usuario"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </button>
+                          <button
+                            className="p-1 text-blue-400 hover:text-blue-300 transition-colors"
+                            title="Ver detalles"
+                          >
+                            <ViewIcon fontSize="small" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
               {/* Paginación */}
               {totalPages > 1 && (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <Button
-                    disabled={currentPage === 1}
+                <div className="flex justify-between items-center bg-gray-800 px-4 py-3 border-t border-gray-700">
+                  <button
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    startIcon={<Box component="span" sx={{ fontSize: '1.2rem' }}>←</Box>}
-                    sx={{
-                      color: currentPage === 1 ? 'text.disabled' : '#FFF',
-                      backgroundColor: currentPage === 1 ? 'transparent' : 'rgba(0, 0, 0, 0.2)',
-                      '&:hover': { backgroundColor: currentPage === 1 ? 'transparent' : 'rgba(0, 0, 0, 0.3)' }
-                    }}
+                    disabled={currentPage === 1}
+                    className={`flex items-center px-3 py-1 rounded-md ${
+                      currentPage === 1
+                        ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-700 text-white hover:bg-gray-600'
+                    }`}
                   >
+                    <ChevronLeftIcon fontSize="small" className="mr-1" />
                     Anterior
-                  </Button>
+                  </button>
                   
-                  <Typography sx={{ color: 'text.secondary' }}>
+                  <div className="text-gray-300">
                     Página {currentPage} de {totalPages}
-                  </Typography>
+                  </div>
                   
-                  <Button
-                    disabled={currentPage === totalPages}
+                  <button
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    endIcon={<Box component="span" sx={{ fontSize: '1.2rem' }}>→</Box>}
-                    sx={{
-                      color: currentPage === totalPages ? 'text.disabled' : '#FFF',
-                      backgroundColor: currentPage === totalPages ? 'transparent' : 'rgba(0, 0, 0, 0.2)',
-                      '&:hover': { backgroundColor: currentPage === totalPages ? 'transparent' : 'rgba(0, 0, 0, 0.3)' }
-                    }}
+                    disabled={currentPage === totalPages}
+                    className={`flex items-center px-3 py-1 rounded-md ${
+                      currentPage === totalPages
+                        ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-700 text-white hover:bg-gray-600'
+                    }`}
                   >
                     Siguiente
-                  </Button>
-                </Box>
+                    <ChevronRightIcon fontSize="small" className="ml-1" />
+                  </button>
+                </div>
               )}
             </>
           )}
-        </Paper>
-      </Box>
+        </div>
+      </div>
 
-      {/* Diálogo de confirmación para eliminar */}
-      <UserDeleteDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={confirmDelete}
-        userName={userToDelete?.username || ''}
-        isDeleting={deleting}
-      />
+      {/* Diálogo de eliminación */}
+      {deleteDialogOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+            <h2 className="text-xl font-bold text-white mb-4">Eliminar Usuario</h2>
+            <p className="text-gray-300 mb-6">
+              ¿Estás seguro de que deseas eliminar al usuario <span className="font-semibold">{userToDelete?.username}</span>? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setDeleteDialogOpen(false)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition"
+                disabled={deleting}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition flex items-center"
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  'Eliminar'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };

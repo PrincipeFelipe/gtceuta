@@ -1,61 +1,41 @@
 import React from 'react';
-import { 
-  Button, 
-  Dialog, 
-  DialogActions, 
-  DialogContent, 
-  DialogContentText, 
-  DialogTitle,
-  Typography,
-  CircularProgress
-} from '@mui/material';
 
 const UserDeleteDialog = ({ open, onClose, onConfirm, userName, isDeleting }) => {
+  if (!open) return null;
+
   return (
-    <Dialog
-      open={open}
-      onClose={!isDeleting ? onClose : undefined}
-      aria-labelledby="alert-dialog-title"
-      aria-describedby="alert-dialog-description"
-      PaperProps={{
-        sx: {
-          backgroundColor: 'background.paper',
-          borderRadius: 2,
-          minWidth: { xs: '90%', sm: '500px' }
-        }
-      }}
-    >
-      <DialogTitle id="alert-dialog-title" sx={{ pb: 1 }}>
-        <Typography variant="h6" component="span" sx={{ color: 'error.main', fontWeight: 'bold' }}>
-          Eliminar usuario
-        </Typography>
-      </DialogTitle>
-      <DialogContent>
-        <DialogContentText id="alert-dialog-description" sx={{ color: 'text.secondary' }}>
-          ¿Estás seguro de que deseas eliminar al usuario <strong>{userName}</strong>? Esta acción no se puede deshacer.
-        </DialogContentText>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button 
-          onClick={onClose} 
-          variant="outlined" 
-          color="inherit"
-          disabled={isDeleting}
-        >
-          Cancelar
-        </Button>
-        <Button 
-          onClick={onConfirm} 
-          color="error" 
-          variant="contained" 
-          disableElevation
-          disabled={isDeleting}
-          startIcon={isDeleting ? <CircularProgress size={20} color="inherit" /> : null}
-        >
-          {isDeleting ? 'Eliminando...' : 'Eliminar'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+        <h2 className="text-xl font-bold text-white mb-4">Eliminar Usuario</h2>
+        <p className="text-gray-300 mb-6">
+          ¿Estás seguro de que deseas eliminar al usuario <span className="font-semibold">{userName}</span>? 
+          Esta acción no se puede deshacer.
+        </p>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+            disabled={isDeleting}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center"
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                <span>Eliminando...</span>
+              </>
+            ) : (
+              'Eliminar'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
